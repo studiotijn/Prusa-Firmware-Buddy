@@ -41,6 +41,7 @@
 
 #include <option/has_sheet_support.h>
 #include <option/has_loadcell.h>
+#include <option/has_soft_surface_mode.h>
 #include <option/has_phase_stepping.h>
 
 namespace config_store_ns {
@@ -320,6 +321,17 @@ namespace defaults {
 #if HAS_LOADCELL()
     inline constexpr float loadcell_scale { 0.0f };
 #endif // HAS_LOADCELL()
+
+#if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode. Conservative placeholder defaults only —
+    // not yet calibrated against real hardcover samples, see docs/calibration.md.
+    inline constexpr bool soft_surface_mode_enabled { false };
+    inline constexpr float soft_surface_probe_force { 50.0f }; // grams, well below the stock trigger threshold
+    inline constexpr float soft_surface_probe_speed { 1.0f }; // mm/s, slower than the stock probe feedrate
+    inline constexpr uint8_t soft_surface_probe_samples { 3 };
+    inline constexpr float soft_surface_filter_strength { 0.0f }; // additional low-pass coefficient on top of the stock bandpass filter
+    inline constexpr float soft_surface_compression_compensation { 0.0f }; // mm, subtracted from the averaged trigger height
+#endif // HAS_SOFT_SURFACE_MODE()
 } // namespace defaults
 
 } // namespace config_store_ns

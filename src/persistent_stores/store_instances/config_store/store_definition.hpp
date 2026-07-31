@@ -28,6 +28,7 @@
 #include <tristate.hpp>
 #include <tool_index.hpp>
 #include <option/has_loadcell.h>
+#include <option/has_soft_surface_mode.h>
 #include <option/has_sheet_profiles.h>
 #include <option/has_adc_side_fsensor.h>
 #include <option/has_input_shaper_calibration.h>
@@ -703,6 +704,17 @@ struct CurrentStore
 #if HAS_PHASE_STEPPING()
     StoreItem<TestResult, defaults::test_result_unknown, ItemFlag::calibrations, journal::hash("Test Result Phase Stepping")> selftest_result_phase_stepping;
 #endif
+
+#if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode: probing/printing on compressible surfaces
+    // (e.g. hardcover book covers) via the existing loadcell. Experimental. See docs/design.md.
+    StoreItem<bool, defaults::soft_surface_mode_enabled, ItemFlag::features, journal::hash("Soft Surface Mode Enabled")> soft_surface_mode_enabled;
+    StoreItem<float, defaults::soft_surface_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Probe Force")> soft_surface_probe_force;
+    StoreItem<float, defaults::soft_surface_probe_speed, ItemFlag::calibrations, journal::hash("Soft Surface Probe Speed")> soft_surface_probe_speed;
+    StoreItem<uint8_t, defaults::soft_surface_probe_samples, ItemFlag::calibrations, journal::hash("Soft Surface Probe Samples")> soft_surface_probe_samples;
+    StoreItem<float, defaults::soft_surface_filter_strength, ItemFlag::calibrations, journal::hash("Soft Surface Filter Strength")> soft_surface_filter_strength;
+    StoreItem<float, defaults::soft_surface_compression_compensation, ItemFlag::calibrations, journal::hash("Soft Surface Compression Compensation")> soft_surface_compression_compensation;
+#endif // HAS_SOFT_SURFACE_MODE()
 
 #if HAS_SHEET_PROFILES()
     StoreItem<uint8_t, 0, ItemFlag::printer_state, journal::hash("Active Sheet")> active_sheet;

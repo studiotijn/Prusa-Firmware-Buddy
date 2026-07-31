@@ -432,6 +432,11 @@ set_feature_for_printers_master_board(
   "COREONEL"
   "COREONEL_INDX"
   )
+
+# Bookmark3D experimental feature: probing/printing directly on compressible surfaces
+# (e.g. hardcover book covers) via the existing loadcell. Off by default in every build;
+# must be explicitly enabled on a dev build. See docs/design.md.
+define_boolean_option(HAS_SOFT_SURFACE_MODE OFF)
 set_feature_for_printers_master_board(
   HAS_NEXTRUDER
   "MK4"
