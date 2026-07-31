@@ -35,6 +35,12 @@
 
 #include "../../Marlin.h" // for wait_for_heatup and idle()
 
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+  #include <config_store/store_instance.hpp>
+  #include <common/bed_type.hpp>
+#endif
+
 /** \addtogroup G-Codes
  * @{
  */
@@ -52,6 +58,11 @@
  */
 void GcodeSuite::M140() {
   if (DEBUGGING(DRYRUN)) return;
+  #if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): no heatbed in use,
+    // silently ignore any setpoint instead of erroring or engaging the heater.
+    if (config_store().bed_type.get() == BedType::soft_surface) return;
+  #endif
   if (parser.seenval('S')) thermalManager.setTargetBed(static_cast<int16_t>(parser.value_celsius()));
 }
 
@@ -69,6 +80,10 @@ void GcodeSuite::M140() {
  */
 void GcodeSuite::M190() {
   if (DEBUGGING(DRYRUN)) return;
+  #if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode: no heatbed in use, nothing to wait for.
+    if (config_store().bed_type.get() == BedType::soft_surface) return;
+  #endif
 
   const bool no_wait_for_cooling = parser.seenval('S');
   if (no_wait_for_cooling || parser.seenval('R')) {

@@ -29,6 +29,9 @@
 #include <tool_index.hpp>
 #include <option/has_loadcell.h>
 #include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include <common/bed_type.hpp>
+#endif
 #include <option/has_sheet_profiles.h>
 #include <option/has_adc_side_fsensor.h>
 #include <option/has_input_shaper_calibration.h>
@@ -708,6 +711,7 @@ struct CurrentStore
 #if HAS_SOFT_SURFACE_MODE()
     // Bookmark3D Soft Surface Mode: probing/printing on compressible surfaces
     // (e.g. hardcover book covers) via the existing loadcell. Experimental. See docs/design.md.
+    StoreItem<BedType, defaults::bed_type, ItemFlag::printer_state, journal::hash("Bed Type")> bed_type;
     StoreItem<bool, defaults::soft_surface_mode_enabled, ItemFlag::features, journal::hash("Soft Surface Mode Enabled")> soft_surface_mode_enabled;
     // "Soft Surface Probe Force" collides with the "Adhoc Filament Parameters 2" hash range - renamed to avoid it.
     StoreItem<float, defaults::soft_surface_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Probing Force")> soft_surface_probe_force;

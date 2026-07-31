@@ -42,6 +42,9 @@
 #include <option/has_sheet_support.h>
 #include <option/has_loadcell.h>
 #include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include <common/bed_type.hpp>
+#endif
 #include <option/has_phase_stepping.h>
 
 namespace config_store_ns {
@@ -325,6 +328,7 @@ namespace defaults {
 #if HAS_SOFT_SURFACE_MODE()
     // Bookmark3D Soft Surface Mode. Conservative placeholder defaults only —
     // not yet calibrated against real hardcover samples, see docs/calibration.md.
+    inline constexpr BedType bed_type { BedType::standard };
     inline constexpr bool soft_surface_mode_enabled { false };
     inline constexpr float soft_surface_probe_force { 50.0f }; // grams, well below the stock trigger threshold
     inline constexpr float soft_surface_probe_speed { 1.0f }; // mm/s, slower than the stock probe feedrate
