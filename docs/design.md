@@ -126,11 +126,22 @@ hardware variant). When `bed_type == SoftSurface`:
 
 ### 4.6 First-layer calibration
 
-A soft-surface variant of the wizard (`selftest_firstlayer*`,
-`selftest_frame_firstlayer*`) uses relaxed squish-tolerance questions/logic
-appropriate for a compressible cover, and feeds its result into
-`soft_surface_compression_compensation` rather than the standard Z-offset
-store field — keeping the two calibration paths from clobbering each other.
+Revised after reading the actual wizard implementation (`selftest_firstlayer.cpp`,
+`selftest_frame_firstlayer_questions.cpp`): there is no algorithmic squish-tolerance
+check to relax. The wizard's live-Z step is entirely manual — the user watches the
+extruded test line and turns the knob — so it needs no surface-specific logic; that
+part is already surface-agnostic.
+
+What the wizard *does* do that's specific to Soft Surface Mode: it calls
+`preheat()` (in `selftest_firstlayer.cpp`), which — like the general preheat/filament
+paths in `M70X_preheat.cpp` (`filament_gcodes::preheat_to`, `M1700_preheat`) — calls
+`thermalManager.setTargetBed(...)` **directly**, bypassing the `M140`/`M190` no-op
+guard added in §4.5/branch 4. Left unpatched, `stateWaitBed()` would wait on a bed
+target that will never be reached even with `bed_type == soft_surface`. Fixed by
+guarding all three direct call sites the same way as `M140`/`M190`. No change to
+`soft_surface_compression_compensation` handling was needed here — it's applied in
+`run_z_probe()` (§4.3/§4.4), which this wizard already calls into via mesh bed
+leveling (`G29`, `stateMbl()`), so it's covered automatically.
 
 ### 4.7 Safety
 
