@@ -664,6 +664,17 @@ float run_z_probe(const RunZProbeParams& params) {
     const auto max_tare_offset = std::abs(loadcell.GetThreshold()); ///< Maximal valid offset from reference_tare
     if (loadcell.probe_should_abort())
       return NAN;
+
+    #if HAS_SOFT_SURFACE_MODE()
+      // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): average more
+      // samples than the caller asked for, for reproducibility on compressible surfaces.
+      // Clamped to TOTAL_PROBING, the hard cap on how many attempts the loop below can make.
+      const uint8_t required_successes = loadcell.IsSoftSurfaceModeActive()
+          ? std::clamp<uint8_t>(config_store().soft_surface_probe_samples.get(), 1, TOTAL_PROBING)
+          : params.required_successes;
+    #else
+      const uint8_t required_successes = params.required_successes;
+    #endif
   #endif
 
   // Double-probing does a fast probe followed by a slow probe
@@ -846,8 +857,8 @@ float run_z_probe(const RunZProbeParams& params) {
           z_sum += result->z_coordinate;
           success_count++;
           metric_record_custom(&analysis_result, " ok=%i,desc=\"all-good\"", true);
-          SERIAL_ECHOLNPAIR("Probe ", success_count, "/", params.required_successes, " classified as clean and OK, Z: ", result->z_coordinate);
-          if (success_count >= params.required_successes)
+          SERIAL_ECHOLNPAIR("Probe ", success_count, "/", required_successes, " classified as clean and OK, Z: ", result->z_coordinate);
+          if (success_count >= required_successes)
             break;
 
         } else {
@@ -879,7 +890,15 @@ float run_z_probe(const RunZProbeParams& params) {
 
   #if ENABLED(NOZZLE_LOAD_CELL)
 
-    const float measured_z = success_count >= params.required_successes ? z_sum / success_count : NAN;
+    float measured_z = success_count >= required_successes ? z_sum / success_count : NAN;
+
+    #if HAS_SOFT_SURFACE_MODE()
+      // Bookmark3D Soft Surface Mode: correct for the cover's known compression under
+      // probe force. See docs/design.md §4.4.
+      if (!std::isnan(measured_z) && loadcell.IsSoftSurfaceModeActive()) {
+        measured_z -= config_store().soft_surface_compression_compensation.get();
+      }
+    #endif
 
   #elif TOTAL_PROBING > 2
 
