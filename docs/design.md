@@ -67,16 +67,22 @@ default builds.
 
 New fields in `store_definition.hpp`, guarded by `HAS_SOFT_SURFACE_MODE()`:
 
+- `bed_type: BedType` — `standard | soft_surface` (added in branch 4, §4.5)
 - `soft_surface_mode_enabled: bool`
-- `soft_surface_probe_force: float` — max force before abort (lower than stock threshold)
-- `soft_surface_probe_speed: float` — Z feedrate during probing (slower than stock)
+- `soft_surface_probe_force: float` — gentle contact-detection threshold (lower magnitude than the stock compiled-in threshold)
+- `soft_surface_probe_speed: float` — Z feedrate during the slow probe move (slower than stock; wired up in branch 6 after being unused since branch 1)
 - `soft_surface_probe_samples: uint8_t` — number of samples to average per point
-- `soft_surface_filter_strength: float` — extra low-pass coefficient applied on top of the existing bandpass filter
-- `soft_surface_compression_compensation: float` — fixed offset (mm) subtracted from the detected trigger point to correct for known cover indentation
+- `soft_surface_filter_strength: float` — extra low-pass coefficient applied on top of the existing bandpass filter (not yet wired up — see open questions)
+- `soft_surface_compression_compensation: float` — fixed offset (mm) subtracted from the averaged trigger height to correct for known cover indentation
+- `soft_surface_max_probe_force: float` — hard abort ceiling (grams), distinct from and above `soft_surface_probe_force`; added in branch 6, §4.7
+- `soft_surface_max_indentation: float` — max acceptable sample spread (mm) at one point before the batch is rejected as unreliable; added in branch 6, §4.7
 
-Defaults added in `defaults.hpp`; a migration entry added in `migrations.cpp`
-per the store's existing versioning convention — new fields never reuse or
-reinterpret an existing EEPROM slot.
+Defaults added in `defaults.hpp`. No `migrations.cpp` entry needed: the
+config_store is a hash-keyed journal (each `StoreItem`'s `journal::hash("...")`
+name is its key), so a brand-new field simply isn't found on old EEPROM data
+and falls back to its default — `migrations.cpp` is only for renaming/retyping
+an *existing* field. (Corrected from the original draft of this doc, which
+assumed a migration entry would be needed.)
 
 ### 4.2 Loadcell / contact detection
 
@@ -145,19 +151,34 @@ leveling (`G29`, `stateMbl()`), so it's covered automatically.
 
 ### 4.7 Safety
 
-New checks, all guarded by `HAS_SOFT_SURFACE_MODE()`:
+As implemented (revised from the original plan after reading the real abort/retry
+plumbing already in `loadcell.cpp`/`probe.cpp`). All new checks guarded by
+`HAS_SOFT_SURFACE_MODE()`:
 
-- **Max probe force** — hard abort if `soft_surface_probe_force` is exceeded
-  before a trigger is detected (protects the cover from crushing).
-- **Max indentation** — abort if the averaged trigger height implies more
-  indentation than a configured ceiling (signals a surface too soft to
-  probe reliably at all).
-- **Probing timeout** — reuses/extends the existing `HomingSafetyCheck`
-  pattern in `loadcell.cpp` so a stalled or noise-only signal aborts rather
-  than hanging.
-- **Force-curve anomaly detection** — flags multi-modal or non-monotonic
-  force curves from `ProbeAnalysisBase::Analyse()` as unreliable and aborts
-  instead of guessing.
+- **Max probe force** — new `soft_surface_max_probe_force` config field (hard
+  ceiling, grams). In `Loadcell::ProcessSample()`, if force exceeds it before
+  contact is confirmed, calls the existing `probe_safety_stop()` immediately
+  (quick_stop + `probe_safety_tripped`), bypassing `confirm_samples` entirely —
+  continuing the descent for several more samples once already over this
+  ceiling risks crushing the cover. Reuses `run_z_probe()`'s existing
+  `probe_safety_did_trip()` / `handle_probe_safety_trip()` retry path; no new
+  abort plumbing was needed.
+- **Max indentation** — new `soft_surface_max_indentation` config field (mm).
+  `run_z_probe()` tracks the min/max Z of accepted samples per point and
+  rejects the averaged result if the spread exceeds it — a rigid surface
+  repeats consistently, so a wide spread means the surface is compressing
+  unpredictably. This doubles as the **"surface too soft" warning** (logged via
+  `SERIAL_ECHOLNPAIR_F`); a full GUI-level warning is left to the
+  experimental-settings branch (§5), consistent with that branch owning
+  user-facing messaging.
+- **Probing timeout** — already covered by the existing `HomingSafetyCheck()`
+  stale-loadcell-data check and `do_probe_move()`'s distance limit
+  (`z_probe_low_point`); both apply unconditionally, no new code needed.
+- ~~Force-curve anomaly detection in `ProbeAnalysisBase::Analyse()`~~ — not
+  implemented as originally planned. The min/max spread check above catches
+  the same "inconsistent/too-soft surface" failure mode without touching the
+  complex windowed statistical engine, for the same reason branch 2 left it
+  alone (§4.2).
 - **Experimental warning** — the experimental-settings menu entry
   (`screen_menu_experimental_settings`) and the GUI wizard both surface an
   explicit "Soft Surface Mode is experimental" notice before first use.
@@ -208,3 +229,9 @@ build) before merging into a project integration branch.
 - Exact numeric defaults for `soft_surface_probe_force` /
   `..._probe_speed` / max indentation need empirical calibration against
   real hardcover samples — tracked in `docs/calibration.md` (not yet written).
+- `soft_surface_filter_strength` is still declared but unused (same gap
+  `soft_surface_probe_speed` had until branch 6): no code yet applies extra
+  low-pass filtering on top of `Loadcell`'s existing bandpass filter. Needs
+  a decision on *how* — a second filter stage in `BandPassFilter`, or a
+  simple exponential smoothing pass on `filtered_z_load` — before wiring it
+  up; deferred rather than guessed at.
