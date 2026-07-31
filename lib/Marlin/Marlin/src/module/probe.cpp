@@ -104,6 +104,7 @@ LOG_COMPONENT_DEF(Probe, logging::Severity::info);
 #include <option/has_auto_retract.h>
 #include <option/has_indx.h>
 #include <option/has_dwarf.h>
+#include <option/has_soft_surface_mode.h>
 #include <mapi/motion.hpp>
 #include <gcode/temperature/M104_M109.hpp>
 #include <config_store/store_instance.hpp>
@@ -1105,6 +1106,16 @@ float probe_at_point(const xy_pos_t &pos, const ProbePtRaise raise_after/*=PROBE
     bool enableHighPrecision = !loadcell.IsHighPrecisionEnabled();
     if (enableHighPrecision) SERIAL_ECHO_MSG("probe: enabling high-precision in single-probe mode");
     auto loadcellPrecisionEnabler = Loadcell::HighPrecisionEnabler(loadcell, enableHighPrecision);
+
+    #if HAS_SOFT_SURFACE_MODE()
+      // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): swap in force-buildup
+      // detection for this probe point when enabled in config_store.
+      auto softSurfaceModeEnabler = Loadcell::SoftSurfaceModeEnabler(
+          loadcell,
+          config_store().soft_surface_mode_enabled.get(),
+          config_store().soft_surface_probe_force.get(),
+          config_store().soft_surface_probe_samples.get());
+    #endif
   #endif
 
   float measured_z = NAN;

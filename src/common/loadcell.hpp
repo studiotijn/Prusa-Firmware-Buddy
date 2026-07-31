@@ -11,6 +11,7 @@
 #include <atomic>
 #include <printers.h>
 #include <option/has_indx.h>
+#include <option/has_soft_surface_mode.h>
 
 class Loadcell {
 public:
@@ -193,6 +194,31 @@ public:
 
     FailureOnLoadAboveEnforcer CreateLoadAboveErrEnforcer(bool enable = true, float grams = 3000);
 
+#if HAS_SOFT_SURFACE_MODE()
+    /// Bookmark3D Soft Surface Mode (experimental, see docs/design.md): configure force-buildup-based
+    /// Z contact detection for the next probe/homing session, in place of the stock instantaneous
+    /// hard-threshold crossing. Call once before arming a probe, e.g. alongside arm_probe_safety().
+    /// @param force_threshold gentler contact-force threshold [grams], from config_store soft_surface_probe_force
+    /// @param confirm_samples number of consecutive samples past threshold required to confirm contact
+    ///        (clamped to >= 1), from config_store soft_surface_probe_samples
+    void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples);
+    inline bool IsSoftSurfaceModeActive() const { return soft_surface_mode_active; }
+
+    /// RAII guard: applies Soft Surface Mode detection config for the scope, restores stock
+    /// detection on destruction. The `enable` flag allows conditional use without scoping the
+    /// guard inside an if block (mirrors HighPrecisionEnabler).
+    class SoftSurfaceModeEnabler {
+    public:
+        SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples);
+        SoftSurfaceModeEnabler(SoftSurfaceModeEnabler &&) = default;
+        ~SoftSurfaceModeEnabler();
+
+    private:
+        Loadcell &m_lcell;
+        bool m_enable;
+    };
+#endif // HAS_SOFT_SURFACE_MODE()
+
 private:
     /// Stop Z immediately and fail the probe (no-op unless a probe session is armed).
     void probe_safety_stop();
@@ -324,6 +350,13 @@ private:
     static constexpr float thresholdContinuous = -40.f;
 #endif
     static constexpr float hysteresis = 80.f;
+
+#if HAS_SOFT_SURFACE_MODE()
+    bool soft_surface_mode_active = false;
+    float soft_surface_threshold = 0.f;
+    uint8_t soft_surface_confirm_samples = 1;
+    uint8_t soft_surface_confirm_counter = 0;
+#endif // HAS_SOFT_SURFACE_MODE()
 
     float scale;
 

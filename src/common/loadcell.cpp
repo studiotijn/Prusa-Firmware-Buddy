@@ -198,12 +198,39 @@ void Loadcell::reset_endstops() {
     endstop = false;
     xy_endstop = false;
 
+#if HAS_SOFT_SURFACE_MODE()
+    soft_surface_confirm_counter = 0;
+#endif // HAS_SOFT_SURFACE_MODE()
+
     if (changed) {
         // Warning: Calling endstops from outside of ISR - needs to be reworked
         // BFW-7674
         buddy::hw::zMin.isr();
     }
 }
+
+#if HAS_SOFT_SURFACE_MODE()
+void Loadcell::SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples) {
+    soft_surface_mode_active = enabled;
+    soft_surface_threshold = force_threshold;
+    soft_surface_confirm_samples = std::max<uint8_t>(confirm_samples, 1);
+    soft_surface_confirm_counter = 0;
+}
+
+Loadcell::SoftSurfaceModeEnabler::SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples)
+    : m_lcell(lcell)
+    , m_enable(enable) {
+    if (m_enable) {
+        m_lcell.SetSoftSurfaceMode(true, force_threshold, confirm_samples);
+    }
+}
+
+Loadcell::SoftSurfaceModeEnabler::~SoftSurfaceModeEnabler() {
+    if (m_enable) {
+        m_lcell.SetSoftSurfaceMode(false, 0.f, 1);
+    }
+}
+#endif // HAS_SOFT_SURFACE_MODE()
 
 bool Loadcell::GetMinZEndstop() const {
     return endstop;
@@ -291,9 +318,33 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
                 threshold = thresholdContinuous;
             }
 
+#if HAS_SOFT_SURFACE_MODE()
+            // Bookmark3D Soft Surface Mode: substitute the gentler, user-tunable threshold
+            // for the stock compiled-in one. See docs/design.md.
+            if (soft_surface_mode_active) {
+                threshold = -std::abs(soft_surface_threshold);
+            }
+#endif // HAS_SOFT_SURFACE_MODE()
+
             if (endstop && loadForEndstops >= (threshold + hysteresis)) {
                 endstop = false;
                 buddy::hw::zMin.isr();
+
+#if HAS_SOFT_SURFACE_MODE()
+            } else if (!endstop && soft_surface_mode_active && endstops.is_z_probe_enabled()) {
+                // Force-buildup detection: require the signal to sustain past threshold for
+                // several consecutive samples before triggering, instead of an instantaneous
+                // crossing. Trades a small, fixed detection delay (confirm_samples / sample
+                // rate) for resilience to noise on soft/compressible surfaces.
+                if (loadForEndstops <= threshold) {
+                    if (++soft_surface_confirm_counter >= soft_surface_confirm_samples) {
+                        endstop = true;
+                        buddy::hw::zMin.isr();
+                    }
+                } else {
+                    soft_surface_confirm_counter = 0;
+                }
+#endif // HAS_SOFT_SURFACE_MODE()
 
             } else if (!endstop && loadForEndstops <= threshold && endstops.is_z_probe_enabled()) {
                 endstop = true;
