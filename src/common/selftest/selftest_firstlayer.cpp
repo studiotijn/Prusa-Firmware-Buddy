@@ -15,6 +15,10 @@
 #include <config_store/store_instance.hpp>
 #include <gcode/gcode.h>
 #include <tool_index.hpp>
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include <common/bed_type.hpp>
+#endif
 
 using namespace selftest;
 LOG_COMPONENT_REF(Selftest);
@@ -61,7 +65,15 @@ void preheat() {
     // nozzle temperature preheat
     thermalManager.setTargetHotend(filament_desc.nozzle_preheat_temperature, 0);
     // bed temperature
+#if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): no heatbed in use,
+    // don't set a target the bed will never reach (stateWaitBed() would otherwise wait on it).
+    if (config_store().bed_type.get() != BedType::soft_surface) {
+        thermalManager.setTargetBed(filament_desc.heatbed_temperature);
+    }
+#else
     thermalManager.setTargetBed(filament_desc.heatbed_temperature);
+#endif
 }
 /**
  * @brief initialization for state which will ask user what to do with filament

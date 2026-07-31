@@ -22,10 +22,23 @@
 #endif
 
 #include <option/has_anfc.h>
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include <common/bed_type.hpp>
+#endif
 #if HAS_ANFC()
     #include <feature/openprinttag/tool_tag.hpp>
     #include <feature/openprinttag/data_utils.hpp>
     #include <feature/openprinttag/requests_read_multi.hpp>
+#endif
+
+#if HAS_SOFT_SURFACE_MODE()
+// Bookmark3D Soft Surface Mode (experimental, see docs/design.md): true when there is no
+// heatbed in use, so preheat/filament-change flows must not set a bed target temperature
+// (M140/M190 already no-op in this mode; this covers the other direct thermalManager callers).
+static bool soft_surface_bed_heating_disabled() {
+    return config_store().bed_type.get() == BedType::soft_surface;
+}
 #endif
 
 #if HAS_ANFC()
@@ -311,7 +324,11 @@ void filament_gcodes::preheat_to(FilamentType filament, std::variant<PhysicalToo
 #endif
     }
 
-    if (hotend_temp_changed && preheat_arg.preheat_bed && (preheat_arg.force_temp || (thermalManager.degTargetBed() < fil_cnf.heatbed_temperature))) {
+    if (hotend_temp_changed && preheat_arg.preheat_bed && (preheat_arg.force_temp || (thermalManager.degTargetBed() < fil_cnf.heatbed_temperature))
+#if HAS_SOFT_SURFACE_MODE()
+        && !soft_surface_bed_heating_disabled()
+#endif
+    ) {
         thermalManager.setTargetBed(fil_cnf.heatbed_temperature);
     }
 
@@ -357,7 +374,11 @@ void filament_gcodes::M1700_preheat(const M1700Args &args) {
 #endif
     }
 
-    if (args.preheat_bed) {
+    if (args.preheat_bed
+#if HAS_SOFT_SURFACE_MODE()
+        && !soft_surface_bed_heating_disabled()
+#endif
+    ) {
         thermalManager.setTargetBed(fil_cnf.heatbed_temperature);
     }
 
