@@ -201,7 +201,11 @@ public:
     /// @param force_threshold gentler contact-force threshold [grams], from config_store soft_surface_probe_force
     /// @param confirm_samples number of consecutive samples past threshold required to confirm contact
     ///        (clamped to >= 1), from config_store soft_surface_probe_samples
-    void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples);
+    /// @param max_force hard abort ceiling [grams], from config_store soft_surface_max_probe_force: if
+    ///        exceeded before contact is confirmed, the descent is stopped immediately (bypassing
+    ///        confirm_samples) instead of waiting for the gentler detection to catch up. Protects the
+    ///        surface if it turns out stiffer than expected. See docs/design.md §4.7.
+    void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force);
     inline bool IsSoftSurfaceModeActive() const { return soft_surface_mode_active; }
 
     /// RAII guard: applies Soft Surface Mode detection config for the scope, restores stock
@@ -209,7 +213,7 @@ public:
     /// guard inside an if block (mirrors HighPrecisionEnabler).
     class SoftSurfaceModeEnabler {
     public:
-        SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples);
+        SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force);
         SoftSurfaceModeEnabler(SoftSurfaceModeEnabler &&) = default;
         ~SoftSurfaceModeEnabler();
 
@@ -356,6 +360,7 @@ private:
     float soft_surface_threshold = 0.f;
     uint8_t soft_surface_confirm_samples = 1;
     uint8_t soft_surface_confirm_counter = 0;
+    float soft_surface_max_force = std::numeric_limits<float>::infinity();
 #endif // HAS_SOFT_SURFACE_MODE()
 
     float scale;

@@ -335,6 +335,8 @@ namespace defaults {
     inline constexpr uint8_t soft_surface_probe_samples { 3 };
     inline constexpr float soft_surface_filter_strength { 0.0f }; // additional low-pass coefficient on top of the stock bandpass filter
     inline constexpr float soft_surface_compression_compensation { 0.0f }; // mm, subtracted from the averaged trigger height
+    inline constexpr float soft_surface_max_probe_force { 150.0f }; // grams, hard abort ceiling (~3x soft_surface_probe_force)
+    inline constexpr float soft_surface_max_indentation { 0.3f }; // mm, max acceptable spread across repeated samples at one point
 #endif // HAS_SOFT_SURFACE_MODE()
 } // namespace defaults
 

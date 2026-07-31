@@ -650,6 +650,9 @@ float run_z_probe(const RunZProbeParams& params) {
   if (params.endstop_triggered)
     *params.endstop_triggered = true;
 
+  // Feedrate for the slow, contact-finding probe move; overridden below for Soft Surface Mode.
+  float slow_probe_feedrate_mms = MMM_TO_MMS(Z_PROBE_SPEED_SLOW);
+
   // We expect PA delays to be already avoided here
   assert(pressure_advance::PressureAdvanceDisabler::is_active());
 
@@ -672,6 +675,12 @@ float run_z_probe(const RunZProbeParams& params) {
       const uint8_t required_successes = loadcell.IsSoftSurfaceModeActive()
           ? std::clamp<uint8_t>(config_store().soft_surface_probe_samples.get(), 1, TOTAL_PROBING)
           : params.required_successes;
+
+      // Slower, gentler descent for compressible surfaces: less overshoot past the
+      // trigger point for a given loadcell sample rate, so less impact force.
+      if (loadcell.IsSoftSurfaceModeActive()) {
+        slow_probe_feedrate_mms = std::max(config_store().soft_surface_probe_speed.get(), 0.1f);
+      }
     #else
       const uint8_t required_successes = params.required_successes;
     #endif
@@ -720,6 +729,12 @@ float run_z_probe(const RunZProbeParams& params) {
     int probe_idx = 0;
     uint8_t success_count = 0;
     float z_sum = 0.0f;
+    #if HAS_SOFT_SURFACE_MODE()
+      // Bookmark3D Soft Surface Mode: track the spread of accepted samples at this point,
+      // to catch a too-soft/inconsistent surface even when each individual sample was
+      // individually accepted by loadcell.analysis.Analyse(). See docs/design.md §4.7.
+      float z_min = INFINITY, z_max = -INFINITY;
+    #endif
   #endif
 
   #if TOTAL_PROBING > 2 && DISABLED(NOZZLE_LOAD_CELL)
@@ -772,7 +787,7 @@ float run_z_probe(const RunZProbeParams& params) {
       #endif
 
       // Probe downward slowly to find the bed
-      if (do_probe_move(z_probe_low_point, MMM_TO_MMS(Z_PROBE_SPEED_SLOW))) {
+      if (do_probe_move(z_probe_low_point, slow_probe_feedrate_mms)) {
         if(params.endstop_triggered)
           *params.endstop_triggered = false;
         if (planner.draining())
@@ -856,6 +871,10 @@ float run_z_probe(const RunZProbeParams& params) {
         if (result.has_value()) {
           z_sum += result->z_coordinate;
           success_count++;
+          #if HAS_SOFT_SURFACE_MODE()
+            z_min = std::min(z_min, result->z_coordinate);
+            z_max = std::max(z_max, result->z_coordinate);
+          #endif
           metric_record_custom(&analysis_result, " ok=%i,desc=\"all-good\"", true);
           SERIAL_ECHOLNPAIR("Probe ", success_count, "/", required_successes, " classified as clean and OK, Z: ", result->z_coordinate);
           if (success_count >= required_successes)
@@ -893,6 +912,18 @@ float run_z_probe(const RunZProbeParams& params) {
     float measured_z = success_count >= required_successes ? z_sum / success_count : NAN;
 
     #if HAS_SOFT_SURFACE_MODE()
+      // Bookmark3D Soft Surface Mode safety: reject the batch if accepted samples at this
+      // point disagree by more than max_indentation. A rigid surface repeats consistently;
+      // a spread this wide means the surface is compressing unpredictably (too soft, or
+      // inconsistent under repeated contact) and the average isn't trustworthy. Doubles as
+      // the "surface too soft" warning. See docs/design.md §4.7.
+      if (!std::isnan(measured_z) && loadcell.IsSoftSurfaceModeActive()
+          && (z_max - z_min) > config_store().soft_surface_max_indentation.get()) {
+        SERIAL_ECHO_START();
+        SERIAL_ECHOLNPAIR_F("Soft Surface Mode: rejecting probe, sample spread exceeds max_indentation (mm): ", z_max - z_min);
+        measured_z = NAN;
+      }
+
       // Bookmark3D Soft Surface Mode: correct for the cover's known compression under
       // probe force. See docs/design.md §4.4.
       if (!std::isnan(measured_z) && loadcell.IsSoftSurfaceModeActive()) {
@@ -1133,7 +1164,8 @@ float probe_at_point(const xy_pos_t &pos, const ProbePtRaise raise_after/*=PROBE
           loadcell,
           config_store().soft_surface_mode_enabled.get(),
           config_store().soft_surface_probe_force.get(),
-          config_store().soft_surface_probe_samples.get());
+          config_store().soft_surface_probe_samples.get(),
+          config_store().soft_surface_max_probe_force.get());
     #endif
   #endif
 

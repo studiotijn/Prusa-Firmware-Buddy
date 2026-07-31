@@ -719,6 +719,8 @@ struct CurrentStore
     StoreItem<uint8_t, defaults::soft_surface_probe_samples, ItemFlag::calibrations, journal::hash("Soft Surface Probe Samples")> soft_surface_probe_samples;
     StoreItem<float, defaults::soft_surface_filter_strength, ItemFlag::calibrations, journal::hash("Soft Surface Filter Strength")> soft_surface_filter_strength;
     StoreItem<float, defaults::soft_surface_compression_compensation, ItemFlag::calibrations, journal::hash("Soft Surface Compression Compensation")> soft_surface_compression_compensation;
+    StoreItem<float, defaults::soft_surface_max_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Max Probe Force")> soft_surface_max_probe_force;
+    StoreItem<float, defaults::soft_surface_max_indentation, ItemFlag::calibrations, journal::hash("Soft Surface Max Indentation")> soft_surface_max_indentation;
 #endif // HAS_SOFT_SURFACE_MODE()
 
 #if HAS_SHEET_PROFILES()

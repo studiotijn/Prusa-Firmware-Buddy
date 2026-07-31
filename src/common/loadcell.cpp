@@ -210,24 +210,25 @@ void Loadcell::reset_endstops() {
 }
 
 #if HAS_SOFT_SURFACE_MODE()
-void Loadcell::SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples) {
+void Loadcell::SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force) {
     soft_surface_mode_active = enabled;
     soft_surface_threshold = force_threshold;
     soft_surface_confirm_samples = std::max<uint8_t>(confirm_samples, 1);
     soft_surface_confirm_counter = 0;
+    soft_surface_max_force = enabled ? max_force : std::numeric_limits<float>::infinity();
 }
 
-Loadcell::SoftSurfaceModeEnabler::SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples)
+Loadcell::SoftSurfaceModeEnabler::SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force)
     : m_lcell(lcell)
     , m_enable(enable) {
     if (m_enable) {
-        m_lcell.SetSoftSurfaceMode(true, force_threshold, confirm_samples);
+        m_lcell.SetSoftSurfaceMode(true, force_threshold, confirm_samples, max_force);
     }
 }
 
 Loadcell::SoftSurfaceModeEnabler::~SoftSurfaceModeEnabler() {
     if (m_enable) {
-        m_lcell.SetSoftSurfaceMode(false, 0.f, 1);
+        m_lcell.SetSoftSurfaceMode(false, 0.f, 1, 0.f);
     }
 }
 #endif // HAS_SOFT_SURFACE_MODE()
@@ -323,6 +324,14 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
             // for the stock compiled-in one. See docs/design.md.
             if (soft_surface_mode_active) {
                 threshold = -std::abs(soft_surface_threshold);
+            }
+
+            // Safety: hard, immediate abort if the force exceeds max_force before contact is
+            // confirmed. Bypasses confirm_samples entirely — letting the descent continue for
+            // several more samples while already over this ceiling risks crushing the surface.
+            // See docs/design.md §4.7.
+            if (soft_surface_mode_active && !endstop && loadForEndstops <= -std::abs(soft_surface_max_force)) {
+                probe_safety_stop();
             }
 #endif // HAS_SOFT_SURFACE_MODE()
 
