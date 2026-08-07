@@ -43,6 +43,17 @@ using ScreenMenuExperimentalSettings__ = ScreenMenu<GuiDefaults::MenuFooter,
     ,
     MI_LOADCELL_SCALE
 #endif
+#if HAS_SOFT_SURFACE_MODE()
+    ,
+    MI_SOFT_SURFACE_MODE_ENABLE,
+    MI_SOFT_SURFACE_PROBE_FORCE,
+    MI_SOFT_SURFACE_MAX_PROBE_FORCE,
+    MI_SOFT_SURFACE_PROBE_SPEED,
+    MI_SOFT_SURFACE_PROBE_SAMPLES,
+    MI_SOFT_SURFACE_FILTER_STRENGTH,
+    MI_SOFT_SURFACE_COMPRESSION_COMPENSATION,
+    MI_SOFT_SURFACE_MAX_INDENTATION
+#endif
     >;
 
 struct ExperimentalSettingsValues {
@@ -61,6 +72,15 @@ struct ExperimentalSettingsValues {
     int32_t rms_current_ma_y;
     int32_t rms_current_ma_z;
     int32_t rms_current_ma_e;
+#if HAS_SOFT_SURFACE_MODE()
+    float soft_surface_probe_force;
+    float soft_surface_max_probe_force;
+    float soft_surface_probe_speed;
+    int32_t soft_surface_probe_samples;
+    float soft_surface_filter_strength;
+    float soft_surface_compression_compensation;
+    float soft_surface_max_indentation;
+#endif
 
     // this is only safe as long as there are no gaps between variabes
     // all variables are 32bit now, so it is safe

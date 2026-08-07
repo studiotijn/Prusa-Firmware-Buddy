@@ -9,6 +9,9 @@
 #include "string.h" // memcmp
 #include "img_resources.hpp"
 #include <gui/menu_vars.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include "window_msgbox.hpp"
+#endif
 
 #if PRINTER_IS_PRUSA_MK3_5()
 /*****************************************************************************/
@@ -227,3 +230,132 @@ MI_FAST_DRAW_ENABLE::MI_FAST_DRAW_ENABLE()
 void MI_FAST_DRAW_ENABLE::OnChange(size_t) {
     config_store().fast_draw_enabled.set(value());
 }
+
+#if HAS_SOFT_SURFACE_MODE()
+/*****************************************************************************/
+// MI_SOFT_SURFACE_MODE_ENABLE
+MI_SOFT_SURFACE_MODE_ENABLE::MI_SOFT_SURFACE_MODE_ENABLE()
+    : WI_ICON_SWITCH_OFF_ON_t {
+        config_store().soft_surface_mode_enabled.get(),
+        _("Soft Surface Mode"),
+    } {
+}
+void MI_SOFT_SURFACE_MODE_ENABLE::OnChange(size_t) {
+    if (value() && MsgBoxWarning(_("Soft Surface Mode is experimental. Probing on soft, compressible surfaces (e.g. book covers) may be unreliable and could damage the nozzle or surface.\nContinue?"), Responses_YesNo, 1) != Response::Yes) {
+        set_value(false);
+        return;
+    }
+    config_store().soft_surface_mode_enabled.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_PROBE_FORCE
+static constexpr NumericInputConfig soft_surface_probe_force_spin_config {
+    .min_value = 1,
+    .max_value = 500,
+    .max_decimal_places = 1,
+};
+
+MI_SOFT_SURFACE_PROBE_FORCE::MI_SOFT_SURFACE_PROBE_FORCE()
+    : WiSpin(config_store().soft_surface_probe_force.get(), soft_surface_probe_force_spin_config, _("Probe Force (g)")) {}
+
+void MI_SOFT_SURFACE_PROBE_FORCE::Store() {
+    config_store().soft_surface_probe_force.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_MAX_PROBE_FORCE
+static constexpr NumericInputConfig soft_surface_max_probe_force_spin_config {
+    .min_value = 1,
+    .max_value = 1000,
+    .max_decimal_places = 1,
+};
+
+MI_SOFT_SURFACE_MAX_PROBE_FORCE::MI_SOFT_SURFACE_MAX_PROBE_FORCE()
+    : WiSpin(config_store().soft_surface_max_probe_force.get(), soft_surface_max_probe_force_spin_config, _("Max Probe Force (g)")) {}
+
+void MI_SOFT_SURFACE_MAX_PROBE_FORCE::Store() {
+    config_store().soft_surface_max_probe_force.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_PROBE_SPEED
+static constexpr NumericInputConfig soft_surface_probe_speed_spin_config {
+    .min_value = 0.1f,
+    .max_value = 10,
+    .step = 0.1f,
+    .max_decimal_places = 1,
+};
+
+MI_SOFT_SURFACE_PROBE_SPEED::MI_SOFT_SURFACE_PROBE_SPEED()
+    : WiSpin(config_store().soft_surface_probe_speed.get(), soft_surface_probe_speed_spin_config, _("Probe Speed (mm/s)")) {}
+
+void MI_SOFT_SURFACE_PROBE_SPEED::Store() {
+    config_store().soft_surface_probe_speed.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_PROBE_SAMPLES
+static constexpr NumericInputConfig soft_surface_probe_samples_spin_config {
+    .min_value = 1,
+    .max_value = 40, // TOTAL_PROBING (MULTIPLE_PROBING) upper bound on MK4
+};
+
+MI_SOFT_SURFACE_PROBE_SAMPLES::MI_SOFT_SURFACE_PROBE_SAMPLES()
+    : WiSpin(config_store().soft_surface_probe_samples.get(), soft_surface_probe_samples_spin_config, _("Probe Samples")) {}
+
+void MI_SOFT_SURFACE_PROBE_SAMPLES::Store() {
+    config_store().soft_surface_probe_samples.set(static_cast<uint8_t>(value()));
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_FILTER_STRENGTH
+static constexpr NumericInputConfig soft_surface_filter_strength_spin_config {
+    .min_value = 0,
+    .max_value = 1,
+    .step = 0.01f,
+    .max_decimal_places = 2,
+};
+
+// Not yet consumed by the probing code (see design.md) - persisted for forward compatibility.
+MI_SOFT_SURFACE_FILTER_STRENGTH::MI_SOFT_SURFACE_FILTER_STRENGTH()
+    : WiSpin(config_store().soft_surface_filter_strength.get(), soft_surface_filter_strength_spin_config, _("Filter Strength")) {}
+
+void MI_SOFT_SURFACE_FILTER_STRENGTH::Store() {
+    config_store().soft_surface_filter_strength.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_COMPRESSION_COMPENSATION
+static constexpr NumericInputConfig soft_surface_compression_compensation_spin_config {
+    .min_value = 0,
+    .max_value = 5,
+    .step = 0.01f,
+    .max_decimal_places = 2,
+    .unit = Unit::millimeter,
+};
+
+MI_SOFT_SURFACE_COMPRESSION_COMPENSATION::MI_SOFT_SURFACE_COMPRESSION_COMPENSATION()
+    : WiSpin(config_store().soft_surface_compression_compensation.get(), soft_surface_compression_compensation_spin_config, _("Compression Compensation")) {}
+
+void MI_SOFT_SURFACE_COMPRESSION_COMPENSATION::Store() {
+    config_store().soft_surface_compression_compensation.set(value());
+}
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_MAX_INDENTATION
+static constexpr NumericInputConfig soft_surface_max_indentation_spin_config {
+    .min_value = 0,
+    .max_value = 10,
+    .step = 0.01f,
+    .max_decimal_places = 2,
+    .unit = Unit::millimeter,
+};
+
+MI_SOFT_SURFACE_MAX_INDENTATION::MI_SOFT_SURFACE_MAX_INDENTATION()
+    : WiSpin(config_store().soft_surface_max_indentation.get(), soft_surface_max_indentation_spin_config, _("Max Indentation")) {}
+
+void MI_SOFT_SURFACE_MAX_INDENTATION::Store() {
+    config_store().soft_surface_max_indentation.set(value());
+}
+#endif // HAS_SOFT_SURFACE_MODE()

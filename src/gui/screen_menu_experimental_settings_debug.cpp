@@ -42,6 +42,16 @@ void ScreenMenuExperimentalSettings::clicked_return() {
         Item<MI_LOADCELL_SCALE>().Store();
 #endif // HAS_LOADCELL()
 
+#if HAS_SOFT_SURFACE_MODE()
+        Item<MI_SOFT_SURFACE_PROBE_FORCE>().Store();
+        Item<MI_SOFT_SURFACE_MAX_PROBE_FORCE>().Store();
+        Item<MI_SOFT_SURFACE_PROBE_SPEED>().Store();
+        Item<MI_SOFT_SURFACE_PROBE_SAMPLES>().Store();
+        Item<MI_SOFT_SURFACE_FILTER_STRENGTH>().Store();
+        Item<MI_SOFT_SURFACE_COMPRESSION_COMPENSATION>().Store();
+        Item<MI_SOFT_SURFACE_MAX_INDENTATION>().Store();
+#endif // HAS_SOFT_SURFACE_MODE()
+
         sys_reset();
     case Response::No:
         Screens::Access()->Close();
@@ -118,5 +128,13 @@ ExperimentalSettingsValues::ExperimentalSettingsValues(ScreenMenuExperimentalSet
     , rms_current_ma_y(static_cast<int32_t>(parent.Item<MI_CURRENT_Y>().GetVal()))
     , rms_current_ma_z(static_cast<int32_t>(parent.Item<MI_CURRENT_Z>().GetVal()))
     , rms_current_ma_e(static_cast<int32_t>(parent.Item<MI_CURRENT_E>().GetVal()))
-
+#if HAS_SOFT_SURFACE_MODE()
+    , soft_surface_probe_force(parent.Item<MI_SOFT_SURFACE_PROBE_FORCE>().value())
+    , soft_surface_max_probe_force(parent.Item<MI_SOFT_SURFACE_MAX_PROBE_FORCE>().value())
+    , soft_surface_probe_speed(parent.Item<MI_SOFT_SURFACE_PROBE_SPEED>().value())
+    , soft_surface_probe_samples(static_cast<int32_t>(parent.Item<MI_SOFT_SURFACE_PROBE_SAMPLES>().value()))
+    , soft_surface_filter_strength(parent.Item<MI_SOFT_SURFACE_FILTER_STRENGTH>().value())
+    , soft_surface_compression_compensation(parent.Item<MI_SOFT_SURFACE_COMPRESSION_COMPENSATION>().value())
+    , soft_surface_max_indentation(parent.Item<MI_SOFT_SURFACE_MAX_INDENTATION>().value())
+#endif
 {}

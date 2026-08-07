@@ -8,6 +8,7 @@
 #pragma once
 #include "WindowMenuItems.hpp"
 #include "i18n.h"
+#include <option/has_soft_surface_mode.h>
 
 enum class ClickCommand : intptr_t { Return,
     Reset_Z,
@@ -158,3 +159,55 @@ public:
 
     void OnChange(size_t) final;
 };
+
+#if HAS_SOFT_SURFACE_MODE()
+// Bookmark3D Soft Surface Mode tunables. See docs/design.md.
+class MI_SOFT_SURFACE_MODE_ENABLE final : public WI_ICON_SWITCH_OFF_ON_t {
+public:
+    MI_SOFT_SURFACE_MODE_ENABLE();
+
+    void OnChange(size_t) final;
+};
+
+class MI_SOFT_SURFACE_PROBE_FORCE : public WiSpin {
+public:
+    MI_SOFT_SURFACE_PROBE_FORCE();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_MAX_PROBE_FORCE : public WiSpin {
+public:
+    MI_SOFT_SURFACE_MAX_PROBE_FORCE();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_PROBE_SPEED : public WiSpin {
+public:
+    MI_SOFT_SURFACE_PROBE_SPEED();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_PROBE_SAMPLES : public WiSpin {
+public:
+    MI_SOFT_SURFACE_PROBE_SAMPLES();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_FILTER_STRENGTH : public WiSpin {
+public:
+    MI_SOFT_SURFACE_FILTER_STRENGTH();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_COMPRESSION_COMPENSATION : public WiSpin {
+public:
+    MI_SOFT_SURFACE_COMPRESSION_COMPENSATION();
+    void Store();
+};
+
+class MI_SOFT_SURFACE_MAX_INDENTATION : public WiSpin {
+public:
+    MI_SOFT_SURFACE_MAX_INDENTATION();
+    void Store();
+};
+#endif // HAS_SOFT_SURFACE_MODE()

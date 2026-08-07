@@ -185,11 +185,43 @@ plumbing already in `loadcell.cpp`/`probe.cpp`). All new checks guarded by
 
 ## 5. UI / user toggle
 
-A new menu item under `ScreenMenuExperimentalSettings` (`_release.cpp` for
-release builds guarded by `HAS_SOFT_SURFACE_MODE()`, always present in
-`_debug.cpp` builds) exposes: mode enable/disable, and the five tunables in
-§4.1, via `MItem_experimental_tools`-style widgets. No new top-level menu —
-consistent with how other experimental features are surfaced today.
+As implemented: new items added to both `screen_menu_experimental_settings_debug`
+and `_release` (identical set for this feature — unlike other items in that
+menu, Soft Surface Mode isn't printer/build-variant-specific), all wrapped in
+`#if HAS_SOFT_SURFACE_MODE()`, in `MItem_experimental_tools.hpp`/`.cpp`. No new
+top-level menu — reuses the existing `ScreenMenuExperimentalSettings` entry
+point, consistent with how other experimental features (fast draw, alt fan
+correction) are surfaced today.
+
+- `MI_SOFT_SURFACE_MODE_ENABLE` — `soft_surface_mode_enabled` toggle
+  (`WI_ICON_SWITCH_OFF_ON_t`), writes to config_store **immediately** on
+  change (mirrors `MI_FAST_DRAW_ENABLE`/`MI_AUTO_RETRACT_ENABLE`, not the
+  deferred-`Store()` pattern below). Turning it *on* shows a `MsgBoxWarning`
+  ("Soft Surface Mode is experimental... Continue?", default-focused on "No")
+  and reverts the toggle if declined — this is the "experimental warning"
+  called for in §4.7, modeled on `MI_AUTO_RETRACT_ENABLE`'s revert-on-decline
+  structure.
+- The seven numeric tunables (`soft_surface_probe_force`,
+  `soft_surface_max_probe_force`, `soft_surface_probe_speed`,
+  `soft_surface_probe_samples`, `soft_surface_filter_strength`,
+  `soft_surface_compression_compensation`, `soft_surface_max_indentation`) —
+  each a `WiSpin`-based `MI_SOFT_SURFACE_*` item with a deferred `Store()`,
+  following the existing `MI_Z_AXIS_LEN`/`MI_CURRENT_X`-style pattern: the
+  value only reaches config_store when the user confirms
+  "Save and return" → reboot in `clicked_return()`. Not strictly required for
+  correctness (all seven are already read live from config_store at
+  probe/preheat time per §4.2–§4.4/§4.7), but `WiSpin` has no
+  after-edit-commit hook to write immediately, and gating tunable changes
+  behind an explicit confirm-and-reboot is arguably desirable anyway for
+  safety-relevant probing parameters. Added to `ExperimentalSettingsValues`'s
+  change-detection struct so editing only these fields still triggers the
+  save prompt (note: `MI_LOADCELL_SCALE` is *not* tracked there today, which
+  looks like a pre-existing oversight in that struct — left alone, out of
+  scope for this branch).
+- `soft_surface_filter_strength` is exposed here even though nothing reads it
+  yet (§4.2 already flagged this as unwired) — kept for forward
+  compatibility once loadcell signal filtering is implemented; not a
+  regression introduced by this branch.
 
 ## 6. Out of scope for v1
 
