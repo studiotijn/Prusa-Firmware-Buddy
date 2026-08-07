@@ -709,7 +709,8 @@ struct CurrentStore
     // Bookmark3D Soft Surface Mode: probing/printing on compressible surfaces
     // (e.g. hardcover book covers) via the existing loadcell. Experimental. See docs/design.md.
     StoreItem<bool, defaults::soft_surface_mode_enabled, ItemFlag::features, journal::hash("Soft Surface Mode Enabled")> soft_surface_mode_enabled;
-    StoreItem<float, defaults::soft_surface_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Probe Force")> soft_surface_probe_force;
+    // "Soft Surface Probe Force" collides with the "Adhoc Filament Parameters 2" hash range - renamed to avoid it.
+    StoreItem<float, defaults::soft_surface_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Probing Force")> soft_surface_probe_force;
     StoreItem<float, defaults::soft_surface_probe_speed, ItemFlag::calibrations, journal::hash("Soft Surface Probe Speed")> soft_surface_probe_speed;
     StoreItem<uint8_t, defaults::soft_surface_probe_samples, ItemFlag::calibrations, journal::hash("Soft Surface Probe Samples")> soft_surface_probe_samples;
     StoreItem<float, defaults::soft_surface_filter_strength, ItemFlag::calibrations, journal::hash("Soft Surface Filter Strength")> soft_surface_filter_strength;
