@@ -149,6 +149,20 @@ guarding all three direct call sites the same way as `M140`/`M190`. No change to
 `run_z_probe()` (§4.3/§4.4), which this wizard already calls into via mesh bed
 leveling (`G29`, `stateMbl()`), so it's covered automatically.
 
+**Correction found by actually compiling with `HAS_SOFT_SURFACE_MODE=ON`
+(2026-08-07):** `selftest_firstlayer.cpp` is only built for
+`PRINTER STREQUAL "MINI"` or `"MK3.5"` (`src/common/selftest/CMakeLists.txt:43-45`)
+— it's not part of the MK4 build at all. MK4 has no dedicated first-layer
+selftest state machine; `SelftestFrameFirstLayer` (`src/gui/wizard/selftest_frame_firstlayer.cpp`)
+is GUI-only display logic with no preheat call of its own. So on the printer
+this project actually targets, the `preheat()` guard above is dead code — it's
+correct and harmless, just unreachable for the MK4+`HAS_SOFT_SURFACE_MODE`
+combination that matters. This doesn't need fixing: MINI/MK3.5 have no
+loadcell either (§3/`HAS_LOADCELL` excludes them), so Soft Surface Mode
+wouldn't make sense there regardless — it reinforces the §8 open question
+that `HAS_SOFT_SURFACE_MODE` should probably be restricted to MK4 builds
+outright.
+
 ### 4.7 Safety
 
 As implemented (revised from the original plan after reading the real abort/retry
