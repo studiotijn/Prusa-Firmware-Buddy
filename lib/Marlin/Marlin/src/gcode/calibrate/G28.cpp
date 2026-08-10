@@ -59,6 +59,15 @@
 
 #include "../../module/probe.h"
 
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+  #include "../../feature/print_area.h"
+  #include <config_store/store_instance.hpp>
+  #if ENABLED(NOZZLE_LOAD_CELL)
+    #include "loadcell.hpp"
+  #endif
+#endif
+
 #if ENABLED(BLTOUCH)
   // #error dead code found by automatic analyses (see BFW-5461)
   #include "../../feature/bltouch.h"
@@ -191,6 +200,19 @@ bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags);
 
 #if ENABLED(Z_SAFE_HOMING)
 
+  #if HAS_SOFT_SURFACE_MODE()
+    // Soft Surface Mode: the fixed Z_SAFE_HOMING point sits off-bed, over the
+    // bare-metal calibration dot, so it never touches the book cover - that's
+    // the right reference for a bare heated bed, but the wrong one when the
+    // whole point is to home against the object's own surface. Use the center
+    // of the slicer-provided print area (M555, already set by start_gcode
+    // before G28 runs) instead.
+    static xy_float_t soft_surface_safe_homing_xy() {
+      const PrintArea::rect_t area = print_area.get_bounding_rect();
+      return { (area.a.x + area.b.x) / 2, (area.a.y + area.b.y) / 2 };
+    }
+  #endif
+
   inline bool home_z_safely() {
     // Disallow Z homing if X or Y homing is needed
     if (homing_needed_error(_BV(X_AXIS) | _BV(Y_AXIS))) return false;
@@ -201,13 +223,19 @@ bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags);
      * Move the Z probe (or just the nozzle) to the safe homing point
      * (Z is already at the right height)
      */
-    constexpr xy_float_t safe_homing_xy = { Z_SAFE_HOMING_X_POINT, Z_SAFE_HOMING_Y_POINT };
+    #if HAS_SOFT_SURFACE_MODE()
+      const xy_float_t safe_homing_xy = config_store().soft_surface_mode_enabled.get()
+          ? soft_surface_safe_homing_xy()
+          : xy_float_t { Z_SAFE_HOMING_X_POINT, Z_SAFE_HOMING_Y_POINT };
+    #else
+      constexpr xy_float_t safe_homing_xy = { Z_SAFE_HOMING_X_POINT, Z_SAFE_HOMING_Y_POINT };
+    #endif
     #if HAS_HOME_OFFSET
       xy_float_t okay_homing_xy = safe_homing_xy;
       okay_homing_xy -= home_offset;
     #else
       // #error dead code found by automatic analyses (see BFW-5461)
-      constexpr xy_float_t okay_homing_xy = safe_homing_xy;
+      const xy_float_t okay_homing_xy = safe_homing_xy;
     #endif
 
     xyze_pos_t dest_pos;
@@ -226,6 +254,20 @@ bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags);
 #else
       do_blocking_move_to_xy(dest_pos);
 #endif
+
+      #if ENABLED(NOZZLE_LOAD_CELL) && HAS_SOFT_SURFACE_MODE()
+        // There's no hard bed under the nozzle here either when Soft Surface
+        // Mode is active - the Z-homing bump move triggers off the same
+        // loadcell contact detection as probing (see probe_at_point()), so it
+        // needs the same gentler force-buildup thresholds, not the
+        // hard-contact default.
+        auto softSurfaceModeEnabler = Loadcell::SoftSurfaceModeEnabler(
+            loadcell,
+            config_store().soft_surface_mode_enabled.get(),
+            config_store().soft_surface_probe_force.get(),
+            config_store().soft_surface_probe_samples.get(),
+            config_store().soft_surface_max_probe_force.get());
+      #endif
 
       if (!homeaxis(Z_AXIS)) {
         return false;
