@@ -197,6 +197,23 @@ plumbing already in `loadcell.cpp`/`probe.cpp`). All new checks guarded by
   (`screen_menu_experimental_settings`) and the GUI wizard both surface an
   explicit "Soft Surface Mode is experimental" notice before first use.
 
+### 4.8 Z-axis safe homing
+
+Not in the original plan — found while reviewing the homing path, not
+probing. `home_z_safely()` (`lib/Marlin/Marlin/src/gcode/calibrate/G28.cpp`,
+guarded by `Z_SAFE_HOMING`) moves to a fixed, bed-relative
+`Z_SAFE_HOMING_X_POINT`/`_Y_POINT` before homing Z — that point sits over the
+bare-metal calibration dot, off-bed, which is correct when homing against a
+bare heated bed but wrong here, since it's very unlikely to land on the book
+cover itself. When `soft_surface_mode_enabled` is set, `home_z_safely()` now
+homes to the center of the slicer-provided print area
+(`PrintArea::get_bounding_rect()`, populated by `M555` in `start_gcode` ahead
+of `G28`) instead. The Z-axis homing bump move also triggers off the same
+loadcell contact detection as probing (`homeaxis(Z_AXIS)` → the same ISR path
+`probe_at_point()` uses), so it's wrapped in the same
+`Loadcell::SoftSurfaceModeEnabler` at the same call site pattern as
+`probe.cpp`.
+
 ## 5. UI / user toggle
 
 As implemented: new items added to both `screen_menu_experimental_settings_debug`
@@ -259,6 +276,9 @@ on `master`, per `../CLAUDE.md`. Proposed sequence:
 5. `feature/soft-surface-firstlayer-wizard` — §4.6.
 6. `feature/soft-surface-safety-checks` — §4.7.
 7. `feature/soft-surface-experimental-menu` — §5.
+8. `feature/soft-surface-safe-homing` — §4.8. Not part of the original plan;
+   added after discovering the homing path had the same off-bed-fixed-point
+   problem the probing branches already solved.
 
 Each branch should be small enough to review independently and must build
 cleanly with `HAS_SOFT_SURFACE_MODE=OFF` (default, no change) and `=ON` (dev
