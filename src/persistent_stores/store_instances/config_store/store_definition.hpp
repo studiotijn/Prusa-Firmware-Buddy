@@ -721,6 +721,7 @@ struct CurrentStore
     StoreItem<float, defaults::soft_surface_compression_compensation, ItemFlag::calibrations, journal::hash("Soft Surface Compression Compensation")> soft_surface_compression_compensation;
     StoreItem<float, defaults::soft_surface_max_probe_force, ItemFlag::calibrations, journal::hash("Soft Surface Max Probe Force")> soft_surface_max_probe_force;
     StoreItem<float, defaults::soft_surface_max_indentation, ItemFlag::calibrations, journal::hash("Soft Surface Max Indentation")> soft_surface_max_indentation;
+    StoreItem<float, defaults::soft_surface_probe_travel_clearance, ItemFlag::calibrations, journal::hash("Soft Surface Probe Travel Clearance")> soft_surface_probe_travel_clearance;
 #endif // HAS_SOFT_SURFACE_MODE()
 
 #if HAS_SHEET_PROFILES()

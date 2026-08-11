@@ -52,7 +52,8 @@ using ScreenMenuExperimentalSettings__ = ScreenMenu<GuiDefaults::MenuFooter,
     MI_SOFT_SURFACE_PROBE_SAMPLES,
     MI_SOFT_SURFACE_FILTER_STRENGTH,
     MI_SOFT_SURFACE_COMPRESSION_COMPENSATION,
-    MI_SOFT_SURFACE_MAX_INDENTATION
+    MI_SOFT_SURFACE_MAX_INDENTATION,
+    MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE
 #endif
     >;
 
@@ -80,6 +81,7 @@ struct ExperimentalSettingsValues {
     float soft_surface_filter_strength;
     float soft_surface_compression_compensation;
     float soft_surface_max_indentation;
+    float soft_surface_probe_travel_clearance;
 #endif
 
     // this is only safe as long as there are no gaps between variabes

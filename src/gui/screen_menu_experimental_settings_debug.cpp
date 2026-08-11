@@ -50,6 +50,7 @@ void ScreenMenuExperimentalSettings::clicked_return() {
         Item<MI_SOFT_SURFACE_FILTER_STRENGTH>().Store();
         Item<MI_SOFT_SURFACE_COMPRESSION_COMPENSATION>().Store();
         Item<MI_SOFT_SURFACE_MAX_INDENTATION>().Store();
+        Item<MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE>().Store();
 #endif // HAS_SOFT_SURFACE_MODE()
 
         sys_reset();
@@ -136,5 +137,6 @@ ExperimentalSettingsValues::ExperimentalSettingsValues(ScreenMenuExperimentalSet
     , soft_surface_filter_strength(parent.Item<MI_SOFT_SURFACE_FILTER_STRENGTH>().value())
     , soft_surface_compression_compensation(parent.Item<MI_SOFT_SURFACE_COMPRESSION_COMPENSATION>().value())
     , soft_surface_max_indentation(parent.Item<MI_SOFT_SURFACE_MAX_INDENTATION>().value())
+    , soft_surface_probe_travel_clearance(parent.Item<MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE>().value())
 #endif
 {}

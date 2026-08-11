@@ -1253,7 +1253,18 @@ float probe_at_point(const xy_pos_t &pos, const ProbePtRaise raise_after/*=PROBE
 
     const bool big_raise = raise_after == PROBE_PT_BIG_RAISE;
     if (big_raise || raise_after == PROBE_PT_RAISE) {
-      plan_park_move_to(current_position.x, current_position.y, move_away_from + (big_raise ? 25 : Z_CLEARANCE_BETWEEN_PROBES), MMM_TO_MMS(XY_PROBE_SPEED), MMM_TO_MMS(Z_PROBE_SPEED_FAST), Segmented::no);
+      float raise_clearance = Z_CLEARANCE_BETWEEN_PROBES;
+      #if HAS_SOFT_SURFACE_MODE()
+        // Bookmark3D Soft Surface Mode: the stock Z_CLEARANCE_BETWEEN_PROBES (0.23mm) leaves
+        // almost no margin for the XY travel move to the next grid point - real hardware
+        // testing showed this dragging/scraping the nozzle across an uneven or tilted
+        // compressible surface between points, denting a real book cover. Use a much larger,
+        // user-tunable clearance instead when active. See docs/design.md.
+        if (loadcell.IsSoftSurfaceModeActive()) {
+          raise_clearance = config_store().soft_surface_probe_travel_clearance.get();
+        }
+      #endif
+      plan_park_move_to(current_position.x, current_position.y, move_away_from + (big_raise ? 25 : raise_clearance), MMM_TO_MMS(XY_PROBE_SPEED), MMM_TO_MMS(Z_PROBE_SPEED_FAST), Segmented::no);
     } else if (raise_after == PROBE_PT_STOW)
       if (STOW_PROBE()) measured_z = NAN;
   }

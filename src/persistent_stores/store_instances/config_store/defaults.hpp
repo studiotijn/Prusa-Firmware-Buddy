@@ -351,7 +351,17 @@ namespace defaults {
     inline constexpr float soft_surface_filter_strength { 0.5f }; // EMA smoothing weight [0,1] on top of the stock bandpass filter, applied only to the post-hoc curve-classifier input
     inline constexpr float soft_surface_compression_compensation { 0.0f }; // mm, subtracted from the averaged trigger height
     inline constexpr float soft_surface_max_probe_force { 150.0f }; // grams, hard abort ceiling (~19x soft_surface_probe_force) - the real indentation backstop, see probe_safety_stop()
-    inline constexpr float soft_surface_max_indentation { 1.0f }; // mm, max acceptable spread across repeated samples at one point
+    // 2026-08-12: raised 1.0 -> 5.0mm per explicit user request after a physical dent appeared
+    // on a real book cover during testing - user judged +/-5mm across the whole print-bed
+    // surface as plenty generous for their material. Still just a per-point sample-spread
+    // tolerance (see probe.cpp), not a mesh-wide flatness check - see docs/design.md.
+    inline constexpr float soft_surface_max_indentation { 5.0f }; // mm, max acceptable spread across repeated samples at one point
+    // 2026-08-12: added after a physical dent appeared on a real book cover during testing -
+    // the stock Z_CLEARANCE_BETWEEN_PROBES (0.23mm, Configuration_MK4.h) leaves almost no
+    // margin for the XY travel move to the next grid point, likely dragging/scraping the
+    // nozzle across an uneven or tilted compressible surface between points. 12mm per
+    // explicit user request/judgment call; not yet calibrated against a range of materials.
+    inline constexpr float soft_surface_probe_travel_clearance { 12.0f }; // mm, Z clearance during XY travel between probe points
 #endif // HAS_SOFT_SURFACE_MODE()
 } // namespace defaults
 

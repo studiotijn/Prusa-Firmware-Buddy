@@ -210,4 +210,10 @@ public:
     MI_SOFT_SURFACE_MAX_INDENTATION();
     void Store();
 };
+
+class MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE : public WiSpin {
+public:
+    MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE();
+    void Store();
+};
 #endif // HAS_SOFT_SURFACE_MODE()

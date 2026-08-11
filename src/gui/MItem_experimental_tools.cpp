@@ -356,4 +356,21 @@ MI_SOFT_SURFACE_MAX_INDENTATION::MI_SOFT_SURFACE_MAX_INDENTATION()
 void MI_SOFT_SURFACE_MAX_INDENTATION::Store() {
     config_store().soft_surface_max_indentation.set(value());
 }
+
+/*****************************************************************************/
+// MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE
+static constexpr NumericInputConfig soft_surface_probe_travel_clearance_spin_config {
+    .min_value = 0,
+    .max_value = 30,
+    .step = 0.5f,
+    .max_decimal_places = 1,
+    .unit = Unit::millimeter,
+};
+
+MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE::MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE()
+    : WiSpin(config_store().soft_surface_probe_travel_clearance.get(), soft_surface_probe_travel_clearance_spin_config, _("Probe Travel Clearance")) {}
+
+void MI_SOFT_SURFACE_PROBE_TRAVEL_CLEARANCE::Store() {
+    config_store().soft_surface_probe_travel_clearance.set(value());
+}
 #endif // HAS_SOFT_SURFACE_MODE()
