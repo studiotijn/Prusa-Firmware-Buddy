@@ -224,6 +224,13 @@ public:
     ///         otherwise config_store_value unchanged.
     float GetEffectiveProbeForce(float config_store_value) const;
 
+    /// True if the soft_surface_max_probe_force safety trip (see docs/design.md §4.7) fired
+    /// since the last call - lets probe.cpp report *why* a probe point failed (surface pushed
+    /// back harder than the configured ceiling) instead of just a generic failure. Reading
+    /// clears the flag (consume-once); call once per probe point, both to discard any stale
+    /// trip from before that point started and to check afterward.
+    bool ConsumeSoftSurfaceMaxForceTripped();
+
     /// RAII guard: applies Soft Surface Mode detection config for the scope, restores stock
     /// detection on destruction. The `enable` flag allows conditional use without scoping the
     /// guard inside an if block (mirrors HighPrecisionEnabler).
@@ -383,6 +390,11 @@ private:
     /// sites), lock-free by construction.
     std::atomic<bool> live_probe_force_override_active { false };
     std::atomic<float> live_probe_force_override_value { 0.f };
+
+    /// Backing storage for ConsumeSoftSurfaceMaxForceTripped() - set from ProcessSample() (ISR
+    /// context) when the max_force ceiling is hit, consumed from probe.cpp (Marlin thread).
+    std::atomic<bool> soft_surface_max_force_tripped { false };
+
     static_assert(std::atomic<bool>::is_always_lock_free, "Lock free type must be used cross-thread.");
     static_assert(std::atomic<float>::is_always_lock_free, "Lock free type must be used cross-thread.");
 #endif // HAS_SOFT_SURFACE_MODE()

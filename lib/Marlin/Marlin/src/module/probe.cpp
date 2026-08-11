@@ -734,6 +734,11 @@ float run_z_probe(const RunZProbeParams& params) {
       // to catch a too-soft/inconsistent surface even when each individual sample was
       // individually accepted by loadcell.analysis.Analyse(). See docs/design.md §4.7.
       float z_min = INFINITY, z_max = -INFINITY;
+      // Discard any max_probe_force trip left over from a previous point, so the reason
+      // reported below (if any) only reflects what happened while probing *this* point.
+      if (loadcell.IsSoftSurfaceModeActive()) {
+        loadcell.ConsumeSoftSurfaceMaxForceTripped();
+      }
     #endif
   #endif
 
@@ -912,22 +917,37 @@ float run_z_probe(const RunZProbeParams& params) {
     float measured_z = success_count >= required_successes ? z_sum / success_count : NAN;
 
     #if HAS_SOFT_SURFACE_MODE()
-      // Bookmark3D Soft Surface Mode safety: reject the batch if accepted samples at this
-      // point disagree by more than max_indentation. A rigid surface repeats consistently;
-      // a spread this wide means the surface is compressing unpredictably (too soft, or
-      // inconsistent under repeated contact) and the average isn't trustworthy. Doubles as
-      // the "surface too soft" warning. See docs/design.md §4.7.
-      if (!std::isnan(measured_z) && loadcell.IsSoftSurfaceModeActive()
-          && (z_max - z_min) > config_store().soft_surface_max_indentation.get()) {
-        SERIAL_ECHO_START();
-        SERIAL_ECHOLNPAIR_F("Soft Surface Mode: rejecting probe, sample spread exceeds max_indentation (mm): ", z_max - z_min);
-        measured_z = NAN;
-      }
+      if (loadcell.IsSoftSurfaceModeActive()) {
+        // Consume before the indentation check below, so it reflects only this point's attempts
+        // (see the reset alongside z_min/z_max above) - read once regardless of which branch
+        // below ends up using it.
+        const bool max_force_tripped = loadcell.ConsumeSoftSurfaceMaxForceTripped();
 
-      // Bookmark3D Soft Surface Mode: correct for the cover's known compression under
-      // probe force. See docs/design.md §4.4.
-      if (!std::isnan(measured_z) && loadcell.IsSoftSurfaceModeActive()) {
-        measured_z -= config_store().soft_surface_compression_compensation.get();
+        // Reject the batch if accepted samples at this point disagree by more than
+        // max_indentation. A rigid surface repeats consistently; a spread this wide means the
+        // surface is compressing unpredictably (too soft, or inconsistent under repeated
+        // contact) and the average isn't trustworthy. Doubles as the "surface too soft"
+        // warning. See docs/design.md §4.7. Surfaced on the LCD status line (not just serial)
+        // so the reason is visible when the "Bed leveling failed" prompt follows - the prompt
+        // itself has no room for dynamic text, see docs/design.md §4.7.
+        if (!std::isnan(measured_z) && (z_max - z_min) > config_store().soft_surface_max_indentation.get()) {
+          SERIAL_ECHO_START();
+          SERIAL_ECHOLNPAIR_F("Soft Surface Mode: rejecting probe, sample spread exceeds max_indentation (mm): ", z_max - z_min);
+          ui.status_printf_P(0, "Soft Surface: sample spread %.2fmm > %.2fmm limit", (double)(z_max - z_min), (double)config_store().soft_surface_max_indentation.get());
+          measured_z = NAN;
+        } else if (std::isnan(measured_z) && max_force_tripped) {
+          // Didn't reach required_successes, and at least one attempt at this point was cut
+          // short by the max_probe_force ceiling - the surface is likely stiffer than expected
+          // rather than the probe simply never making contact.
+          SERIAL_ECHO_START();
+          SERIAL_ECHOLNPGM("Soft Surface Mode: rejecting probe, max_probe_force ceiling was hit before contact was confirmed");
+          ui.status_printf_P(0, "Soft Surface: probe force ceiling (%.0fg) hit before contact", (double)config_store().soft_surface_max_probe_force.get());
+        }
+
+        // Correct for the cover's known compression under probe force. See docs/design.md §4.4.
+        if (!std::isnan(measured_z)) {
+          measured_z -= config_store().soft_surface_compression_compensation.get();
+        }
       }
     #endif
 

@@ -244,6 +244,10 @@ void Loadcell::SetLiveProbeForceOverride(std::optional<float> grams) {
 float Loadcell::GetEffectiveProbeForce(float config_store_value) const {
     return live_probe_force_override_active.load() ? live_probe_force_override_value.load() : config_store_value;
 }
+
+bool Loadcell::ConsumeSoftSurfaceMaxForceTripped() {
+    return soft_surface_max_force_tripped.exchange(false);
+}
 #endif // HAS_SOFT_SURFACE_MODE()
 
 bool Loadcell::GetMinZEndstop() const {
@@ -344,6 +348,7 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
             // several more samples while already over this ceiling risks crushing the surface.
             // See docs/design.md §4.7.
             if (soft_surface_mode_active && !endstop && loadForEndstops <= -std::abs(soft_surface_max_force)) {
+                soft_surface_max_force_tripped.store(true);
                 probe_safety_stop();
             }
 #endif // HAS_SOFT_SURFACE_MODE()
