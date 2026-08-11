@@ -102,7 +102,14 @@ void WindowSoftSurfaceGauge::unconditionalDraw() {
 // DialogSoftSurfaceProbing
 
 namespace {
-constexpr uint16_t indentation_label_height = 14;
+constexpr uint16_t indentation_label_height = 18;
+// Wider than the gauge bar itself - "%.2f" on a 0-10mm range can render up to 5 characters
+// ("10.00"), which doesn't fit in gauge_width (40px). A debug build's
+// assert(flags.overflow == check_overflow::no || !layout.has_text_overflown()) in
+// display_helper.cpp caught this the first time this dialog actually ran on real hardware
+// (crashed mid-print, right as the overlay opened) - release builds silently didn't hit the
+// assert, so this went unnoticed through every earlier release-build test.
+constexpr uint16_t indentation_label_width = 70;
 
 Rect16 gauge_rect() {
     // Compact vertical strip in the upper-right corner of the screen body, clear of header/
@@ -121,8 +128,11 @@ Rect16 indentation_label_rect(const Rect16 &gauge) {
     // Small readout directly above the gauge bar showing the current max-indentation tolerance
     // (mm) - the flatness/consistency limit that can reject a probe point (probe.cpp). Requested
     // so the "how strict is the flatness check" threshold is visible during probing, same as the
-    // force threshold already is via the bar+arrow below it.
-    return Rect16(gauge.Left(), gauge.Top() - indentation_label_height, gauge.Width(), indentation_label_height);
+    // force threshold already is via the bar+arrow below it. Wider than the gauge bar and
+    // right-aligned to it (extends left) so it stays on-screen instead of running off the right
+    // edge.
+    const uint16_t right_edge = gauge.Left() + gauge.Width();
+    return Rect16(right_edge - indentation_label_width, gauge.Top() - indentation_label_height, indentation_label_width, indentation_label_height);
 }
 } // namespace
 

@@ -352,6 +352,8 @@
     bool probe_deployed = false;
     if (g29_parameter_parsing()) return; // Abort on parameter error
 
+    SERIAL_ECHOLNPAIR("Bookmark3D debug: ubl.G29() entry, seen_any=", (int)parser.seen_any(), " seen_P=", (int)parser.seen('P'), " phase=", (int)g29_phase_value, " probing_failed_before=", (int)ubl.g29_probing_failed);
+
     if (g29_wait_for_preheat) {
         Temperature::wait_for_frame_heatup();
     }
@@ -618,10 +620,15 @@
 
     if (!parser.seen_any()) {
         // backward compatibility with ABL
+        SERIAL_ECHOLNPGM("Bookmark3D debug: bare G29, running ABL-compat cascade (P1 X0 Y0 / P3.2 / P3.13 / A)");
         gcode.process_subcommands_now_P("G29 P1 X0 Y0");
+        SERIAL_ECHOLNPGM("Bookmark3D debug: cascade P1 X0 Y0 done");
         gcode.process_subcommands_now_P("G29 P3.2");
+        SERIAL_ECHOLNPGM("Bookmark3D debug: cascade P3.2 done");
         gcode.process_subcommands_now_P("G29 P3.13");
+        SERIAL_ECHOLNPGM("Bookmark3D debug: cascade P3.13 done");
         gcode.process_subcommands_now_P("G29 A");
+        SERIAL_ECHOLNPGM("Bookmark3D debug: cascade A done");
     }
 
     #ifdef Z_PROBE_END_SCRIPT
@@ -688,14 +695,11 @@
 
 #if HAS_BED_PROBE
   void unified_bed_leveling::probe_major_points(const PrintArea::rect_t &probe_area, const bool do_ubl_mesh_map, const bool stow_probe, const bool extend_mesh) {
-    // g29_probing_failed is only ever set to true (below, when a grid point returns NaN) and was
-    // never reset anywhere else - once any single point failed, every subsequent G29 P1 call in
-    // the same power cycle would silently no-op: for_each_grid_point's very first iteration
-    // (`if (ubl.g29_probing_failed) return;`) bails before probe_at_point() is even called, so no
-    // probing happens and none of the failure-reason reporting added for Soft Surface Mode fires
-    // either. Reset here so each probing pass starts with a clean slate, independent of whether a
-    // previous pass (in this same call, or an earlier one) failed.
-    ubl.g29_probing_failed = false;
+    // Bookmark3D debug: GcodeSuite::G29() (G29.cpp) already resets g29_probing_failed = false at
+    // the top of its retry loop before every ubl.G29() call, so this used to also reset it here -
+    // turned out redundant, see the corrected GitHub issue. Kept as a log line instead while we
+    // track down the real "all points succeed, then Bed leveling failed anyway" symptom.
+    SERIAL_ECHOLNPAIR("Bookmark3D debug: probe_major_points() entry, extend_mesh=", (int)extend_mesh, " probing_failed=", (int)ubl.g29_probing_failed, " area a.x=", probe_area.a.x, " a.y=", probe_area.a.y, " b.x=", probe_area.b.x, " b.y=", probe_area.b.y);
     save_ubl_active_state_and_disable();  // No bed level correction so only raw data is obtained
     pressure_advance::PressureAdvanceDisabler pa_disabler; // Reduce move delays as we don't extrude
 
@@ -817,6 +821,8 @@
         ExtUI::onMeshUpdate(x, y, measured_z);
       #endif
     });
+
+    SERIAL_ECHOLNPAIR("Bookmark3D debug: probe_major_points() exit, to_probe=", num_of_points_to_probe, " probed=", num_of_probed_points, " probing_failed=", (int)ubl.g29_probing_failed);
 
     // make sure the probe is stowed when finished no matter the `stow_probe` argument
     STOW_PROBE();

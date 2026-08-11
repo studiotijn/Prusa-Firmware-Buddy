@@ -282,7 +282,9 @@ void GcodeSuite::G29() {
         ubl.g29_min_max_measured_z = std::nullopt;
         ubl.g29_nozzle_cleaning_failed = false;
         ubl.g29_probing_failed = false;
+        SERIAL_ECHOLNPGM("Bookmark3D debug: GcodeSuite::G29() calling ubl.G29()");
         ubl.G29();
+        SERIAL_ECHOLNPAIR("Bookmark3D debug: GcodeSuite::G29() back from ubl.G29(), probing_failed=", (int)ubl.g29_probing_failed, " draining=", (int)planner.draining());
 
         // Planner is draining -> there is some emergency or quickstop, abort abort uíí uíí uíí
         if (planner.draining()) {
@@ -291,6 +293,7 @@ void GcodeSuite::G29() {
 
     #if HAS_BED_PROBE
         if (ubl.g29_probing_failed) {
+            SERIAL_ECHOLNPGM("Bookmark3D debug: GcodeSuite::G29() showing ProbingFailed prompt");
             plan_park_move_to_xyz({ { XYZ_NOZZLE_PARK_POINT } }, NOZZLE_PARK_XY_FEEDRATE, NOZZLE_PARK_Z_FEEDRATE, Segmented::yes);
 
             if (marlin_server::prompt_warning(WarningType::ProbingFailed) != Response::Yes) {
