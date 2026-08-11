@@ -942,6 +942,18 @@ float run_z_probe(const RunZProbeParams& params) {
           SERIAL_ECHO_START();
           SERIAL_ECHOLNPGM("Soft Surface Mode: rejecting probe, max_probe_force ceiling was hit before contact was confirmed");
           ui.status_printf_P(0, "Soft Surface: probe force ceiling (%.0fg) hit before contact", (double)config_store().soft_surface_max_probe_force.get());
+        } else if (std::isnan(measured_z)) {
+          // Contact was confirmed on attempts (endstops did trigger - see "endstops hit" on
+          // serial), but loadcell.analysis.Analyse() kept classifying the resulting force curve
+          // as NOK (e.g. "sanity-check"/"low-precision"/"z-lines") before required_successes was
+          // reached. That classifier's shape/timing model was fitted to a rigid bed's sharp
+          // compression step (see docs/design.md) - a gradually-compressing cover routinely
+          // fails it even though the coarse contact detection above is working fine. Distinct
+          // from a genuine no-contact fault, so worth calling out even though the underlying
+          // classifier itself is still unchanged here.
+          SERIAL_ECHO_START();
+          SERIAL_ECHOLNPAIR("Soft Surface Mode: rejecting probe, only ", success_count, "/", required_successes, " samples classified clean after ", probe_idx, " attempts (probe signal too noisy for this surface)");
+          ui.status_printf_P(0, "Soft Surface: signal too noisy (%d/%d clean in %d tries)", success_count, required_successes, probe_idx);
         }
 
         // Correct for the cover's known compression under probe force. See docs/design.md §4.4.
@@ -1187,7 +1199,8 @@ float probe_at_point(const xy_pos_t &pos, const ProbePtRaise raise_after/*=PROBE
           config_store().soft_surface_mode_enabled.get(),
           loadcell.GetEffectiveProbeForce(config_store().soft_surface_probe_force.get()),
           config_store().soft_surface_probe_samples.get(),
-          config_store().soft_surface_max_probe_force.get());
+          config_store().soft_surface_max_probe_force.get(),
+          config_store().soft_surface_filter_strength.get());
     #endif
   #endif
 

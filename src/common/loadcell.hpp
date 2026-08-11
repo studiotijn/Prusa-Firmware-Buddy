@@ -206,7 +206,14 @@ public:
     ///        exceeded before contact is confirmed, the descent is stopped immediately (bypassing
     ///        confirm_samples) instead of waiting for the gentler detection to catch up. Protects the
     ///        surface if it turns out stiffer than expected. See docs/design.md §4.7.
-    void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force);
+    /// @param filter_strength extra EMA smoothing [0,1] applied to the load value fed into
+    ///        `analysis` (loadcell.analysis.Analyse()'s curve-fit), on top of the stock bandpass
+    ///        filter already used for the raw endstop threshold - from config_store
+    ///        soft_surface_filter_strength. 0 = no extra smoothing (stock behavior). Does not
+    ///        affect the endstop-trigger threshold comparison itself, only what the post-hoc
+    ///        curve classifier sees, since that classifier's line-fit is far more sensitive to
+    ///        sample-to-sample noise than the buildup-based trigger is.
+    void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force, float filter_strength = 0.f);
     inline bool IsSoftSurfaceModeActive() const { return soft_surface_mode_active; }
 
     /// Live probing-force threshold override, set by the live probing-force gauge overlay
@@ -236,7 +243,7 @@ public:
     /// guard inside an if block (mirrors HighPrecisionEnabler).
     class SoftSurfaceModeEnabler {
     public:
-        SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force);
+        SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force, float filter_strength = 0.f);
         SoftSurfaceModeEnabler(SoftSurfaceModeEnabler &&) = default;
         ~SoftSurfaceModeEnabler();
 
@@ -384,6 +391,12 @@ private:
     uint8_t soft_surface_confirm_samples = 1;
     uint8_t soft_surface_confirm_counter = 0;
     float soft_surface_max_force = std::numeric_limits<float>::infinity();
+    float soft_surface_filter_strength = 0.f;
+    /// EMA state for the extra soft-surface smoothing filter (see SetSoftSurfaceMode's
+    /// filter_strength). NAN = not yet initialized for this probing session; reset in
+    /// SetSoftSurfaceMode() so each point starts from its own first raw sample instead of
+    /// carrying over the previous point's baseline.
+    float soft_surface_filtered_load = std::numeric_limits<float>::quiet_NaN();
 
     /// Backing storage for SetLiveProbeForceOverride()/GetEffectiveProbeForce() - written from
     /// the GUI thread (probing-force overlay), read from the Marlin thread (probe/homing call

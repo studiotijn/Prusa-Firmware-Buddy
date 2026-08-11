@@ -210,19 +210,21 @@ void Loadcell::reset_endstops() {
 }
 
 #if HAS_SOFT_SURFACE_MODE()
-void Loadcell::SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force) {
+void Loadcell::SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force, float filter_strength) {
     soft_surface_mode_active = enabled;
     soft_surface_threshold = force_threshold;
     soft_surface_confirm_samples = std::max<uint8_t>(confirm_samples, 1);
     soft_surface_confirm_counter = 0;
     soft_surface_max_force = enabled ? max_force : std::numeric_limits<float>::infinity();
+    soft_surface_filter_strength = std::clamp(filter_strength, 0.f, 1.f);
+    soft_surface_filtered_load = std::numeric_limits<float>::quiet_NaN();
 }
 
-Loadcell::SoftSurfaceModeEnabler::SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force)
+Loadcell::SoftSurfaceModeEnabler::SoftSurfaceModeEnabler(Loadcell &lcell, bool enable, float force_threshold, uint8_t confirm_samples, float max_force, float filter_strength)
     : m_lcell(lcell)
     , m_enable(enable) {
     if (m_enable) {
-        m_lcell.SetSoftSurfaceMode(true, force_threshold, confirm_samples, max_force);
+        m_lcell.SetSoftSurfaceMode(true, force_threshold, confirm_samples, max_force, filter_strength);
     }
 }
 
@@ -440,7 +442,26 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
 
     // push sample for analysis
     // If the sample is nan, the analysis should detect it and fail
-    analysis.StoreSample(time_us, z_pos, tared_z_load);
+    float analysis_load = tared_z_load;
+#if HAS_SOFT_SURFACE_MODE()
+    // Bookmark3D Soft Surface Mode: extra EMA smoothing on top of the stock bandpass filter,
+    // applied only to what the post-hoc curve classifier (analysis.Analyse()) sees - not to the
+    // raw endstop-trigger comparison above, which already has its own gentler, purpose-built
+    // force-buildup detection. Analyse()'s two-line curve fit was tuned for a rigid bed's sharp
+    // compression step and is far more sensitive to sample noise than that trigger; a soft,
+    // gradually-compressing surface routinely produces a noisy enough curve to fail its
+    // sanity/precision checks even when contact was cleanly detected. See docs/design.md.
+    if (soft_surface_mode_active && soft_surface_filter_strength > 0.f && std::isfinite(tared_z_load)) {
+        if (std::isnan(soft_surface_filtered_load)) {
+            soft_surface_filtered_load = tared_z_load; // bootstrap on the first sample of this session
+        } else {
+            soft_surface_filtered_load = soft_surface_filter_strength * soft_surface_filtered_load
+                + (1.f - soft_surface_filter_strength) * tared_z_load;
+        }
+        analysis_load = soft_surface_filtered_load;
+    }
+#endif
+    analysis.StoreSample(time_us, z_pos, analysis_load);
 
     if (std::isnan(z_pos)) {
         // Temporary disabled as this causes positive feedback loop by blocking the calling thread if the logs are

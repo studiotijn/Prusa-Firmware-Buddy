@@ -313,7 +313,9 @@ static constexpr NumericInputConfig soft_surface_filter_strength_spin_config {
     .max_decimal_places = 2,
 };
 
-// Not yet consumed by the probing code (see design.md) - persisted for forward compatibility.
+// Extra EMA smoothing on the loadcell signal fed into the probe's post-hoc curve classifier
+// (analysis.Analyse()) - see Loadcell::SetSoftSurfaceMode()/ProcessSample(). 0 = no extra
+// smoothing (stock behavior).
 MI_SOFT_SURFACE_FILTER_STRENGTH::MI_SOFT_SURFACE_FILTER_STRENGTH()
     : WiSpin(config_store().soft_surface_filter_strength.get(), soft_surface_filter_strength_spin_config, _("Filter Strength")) {}
 

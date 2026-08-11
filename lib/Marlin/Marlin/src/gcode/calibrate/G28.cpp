@@ -276,7 +276,8 @@ bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags);
             config_store().soft_surface_mode_enabled.get(),
             loadcell.GetEffectiveProbeForce(config_store().soft_surface_probe_force.get()),
             config_store().soft_surface_probe_samples.get(),
-            config_store().soft_surface_max_probe_force.get());
+            config_store().soft_surface_max_probe_force.get(),
+            config_store().soft_surface_filter_strength.get());
       #endif
 
       if (!homeaxis(Z_AXIS)) {
