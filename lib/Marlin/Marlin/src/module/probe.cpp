@@ -658,6 +658,12 @@ float run_z_probe(const RunZProbeParams& params) {
 
   #if ENABLED(NOZZLE_LOAD_CELL)
     if (!loadcell_wait_streaming()) {
+      #if HAS_SOFT_SURFACE_MODE()
+        if (loadcell.IsSoftSurfaceModeActive()) {
+          SERIAL_ECHOLNPGM("Bookmark3D debug: run_z_probe() aborting before any attempt - loadcell_wait_streaming() timed out");
+          ui.status_printf_P(0, "Soft Surface: loadcell not streaming (point skipped)");
+        }
+      #endif
       return NAN;
     }
     auto H = loadcell.CreateLoadAboveErrEnforcer();
@@ -665,8 +671,15 @@ float run_z_probe(const RunZProbeParams& params) {
     auto safetyArmer = Loadcell::ProbeSafetyArmer(loadcell);
     auto reference_tare = loadcell_retare_for_analysis(Z_FIRST_PROBE_DELAY); ///< Use this value as reference for following tares
     const auto max_tare_offset = std::abs(loadcell.GetThreshold()); ///< Maximal valid offset from reference_tare
-    if (loadcell.probe_should_abort())
+    if (loadcell.probe_should_abort()) {
+      #if HAS_SOFT_SURFACE_MODE()
+        if (loadcell.IsSoftSurfaceModeActive()) {
+          SERIAL_ECHOLNPAIR("Bookmark3D debug: run_z_probe() aborting before any attempt - probe_should_abort() true, draining=", (int)planner.draining(), " stopping=", (int)PreciseStepping::stopping(), " safety_tripped=", (int)loadcell.probe_safety_did_trip());
+          ui.status_printf_P(0, "Soft Surface: probe aborted before starting (point skipped)");
+        }
+      #endif
       return NAN;
+    }
 
     #if HAS_SOFT_SURFACE_MODE()
       // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): average more
