@@ -688,6 +688,14 @@
 
 #if HAS_BED_PROBE
   void unified_bed_leveling::probe_major_points(const PrintArea::rect_t &probe_area, const bool do_ubl_mesh_map, const bool stow_probe, const bool extend_mesh) {
+    // g29_probing_failed is only ever set to true (below, when a grid point returns NaN) and was
+    // never reset anywhere else - once any single point failed, every subsequent G29 P1 call in
+    // the same power cycle would silently no-op: for_each_grid_point's very first iteration
+    // (`if (ubl.g29_probing_failed) return;`) bails before probe_at_point() is even called, so no
+    // probing happens and none of the failure-reason reporting added for Soft Surface Mode fires
+    // either. Reset here so each probing pass starts with a clean slate, independent of whether a
+    // previous pass (in this same call, or an earlier one) failed.
+    ubl.g29_probing_failed = false;
     save_ubl_active_state_and_disable();  // No bed level correction so only raw data is obtained
     pressure_advance::PressureAdvanceDisabler pa_disabler; // Reduce move delays as we don't extrude
 
