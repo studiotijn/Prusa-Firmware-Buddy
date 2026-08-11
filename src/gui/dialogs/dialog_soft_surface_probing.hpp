@@ -6,6 +6,7 @@
 
 #include "IDialogMarlin.hpp"
 #include "soft_surface_probe_force_config.hpp"
+#include "window_numb.hpp"
 
 /// Short vertical scale + live force bar ("dikke staaf") + threshold arrow.
 class WindowSoftSurfaceGauge : public window_frame_t {
@@ -49,4 +50,9 @@ protected:
 
 private:
     WindowSoftSurfaceGauge gauge;
+    /// Read-only readout of the current soft_surface_max_indentation tolerance (mm) - the "how
+    /// flat does this surface need to be" limit that rejects a probe point when repeated samples
+    /// disagree by more than this much (see probe.cpp). Not knob-adjustable here (unlike the
+    /// force threshold above it) - change it via Experimental Settings if it's too strict.
+    window_numb_t max_indentation_label;
 };

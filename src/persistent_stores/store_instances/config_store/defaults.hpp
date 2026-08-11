@@ -330,13 +330,20 @@ namespace defaults {
     // not yet calibrated against real hardcover samples, see docs/calibration.md.
     inline constexpr BedType bed_type { BedType::standard };
     inline constexpr bool soft_surface_mode_enabled { false };
-    inline constexpr float soft_surface_probe_force { 50.0f }; // grams, well below the stock trigger threshold
+    // 2026-08-11: soft_surface_probe_force lowered 50 -> 8g and soft_surface_max_indentation
+    // raised 0.3 -> 1.0mm - the 50g default sat at/above the stock continuous-mode trigger
+    // threshold (-40 to -50g, see loadcell.hpp), so it wasn't actually triggering any earlier
+    // than a normal hard bed and let the nozzle press well into a book cover before contact
+    // registered; 0.3mm was tight enough to reject plausible probe points on a lightly
+    // compressible cover and surface real "bed leveling failed" prompts to the user. Real
+    // calibration against physical samples is still open (docs/calibration.md, not yet written).
+    inline constexpr float soft_surface_probe_force { 8.0f }; // grams, well below the stock continuous-mode trigger threshold (-40 to -50g)
     inline constexpr float soft_surface_probe_speed { 1.0f }; // mm/s, slower than the stock probe feedrate
     inline constexpr uint8_t soft_surface_probe_samples { 3 };
     inline constexpr float soft_surface_filter_strength { 0.0f }; // additional low-pass coefficient on top of the stock bandpass filter
     inline constexpr float soft_surface_compression_compensation { 0.0f }; // mm, subtracted from the averaged trigger height
-    inline constexpr float soft_surface_max_probe_force { 150.0f }; // grams, hard abort ceiling (~3x soft_surface_probe_force)
-    inline constexpr float soft_surface_max_indentation { 0.3f }; // mm, max acceptable spread across repeated samples at one point
+    inline constexpr float soft_surface_max_probe_force { 150.0f }; // grams, hard abort ceiling (~19x soft_surface_probe_force) - the real indentation backstop, see probe_safety_stop()
+    inline constexpr float soft_surface_max_indentation { 1.0f }; // mm, max acceptable spread across repeated samples at one point
 #endif // HAS_SOFT_SURFACE_MODE()
 } // namespace defaults
 

@@ -102,6 +102,8 @@ void WindowSoftSurfaceGauge::unconditionalDraw() {
 // DialogSoftSurfaceProbing
 
 namespace {
+constexpr uint16_t indentation_label_height = 14;
+
 Rect16 gauge_rect() {
     // Compact vertical strip in the upper-right corner of the screen body, clear of header/
     // footer. Exact placement is a first pass - needs visual tuning against a real display or
@@ -110,15 +112,25 @@ Rect16 gauge_rect() {
     constexpr uint16_t margin = 10;
     return Rect16(
         GuiDefaults::ScreenWidth - gauge_width - margin,
-        GuiDefaults::RectScreenBody.Top() + margin,
+        GuiDefaults::RectScreenBody.Top() + margin + indentation_label_height,
         gauge_width,
         height);
+}
+
+Rect16 indentation_label_rect(const Rect16 &gauge) {
+    // Small readout directly above the gauge bar showing the current max-indentation tolerance
+    // (mm) - the flatness/consistency limit that can reject a probe point (probe.cpp). Requested
+    // so the "how strict is the flatness check" threshold is visible during probing, same as the
+    // force threshold already is via the bar+arrow below it.
+    return Rect16(gauge.Left(), gauge.Top() - indentation_label_height, gauge.Width(), indentation_label_height);
 }
 } // namespace
 
 DialogSoftSurfaceProbing::DialogSoftSurfaceProbing(fsm::BaseData /*data*/)
-    : IDialogMarlin(gauge_rect())
-    , gauge(this, GetRect(), config_store().soft_surface_probe_force.get()) {
+    : IDialogMarlin(gauge_rect().Union(indentation_label_rect(gauge_rect())))
+    , gauge(this, gauge_rect(), config_store().soft_surface_probe_force.get())
+    , max_indentation_label(this, indentation_label_rect(gauge_rect()), config_store().soft_surface_max_indentation.get(), "%.2f", GuiDefaults::FontMenuSpecial) {
+    max_indentation_label.SetTextColor(COLOR_ORANGE);
     // Active from the moment the dialog opens, not only after the first knob turn, so the very
     // first probe/homing attempt in this session already reads the live channel.
     loadcell.SetLiveProbeForceOverride(gauge.GetValue());
