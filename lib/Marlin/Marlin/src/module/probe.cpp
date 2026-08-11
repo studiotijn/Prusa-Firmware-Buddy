@@ -671,6 +671,25 @@ float run_z_probe(const RunZProbeParams& params) {
     auto safetyArmer = Loadcell::ProbeSafetyArmer(loadcell);
     auto reference_tare = loadcell_retare_for_analysis(Z_FIRST_PROBE_DELAY); ///< Use this value as reference for following tares
     const auto max_tare_offset = std::abs(loadcell.GetThreshold()); ///< Maximal valid offset from reference_tare
+    #if HAS_SOFT_SURFACE_MODE()
+      // A successful contact on the *previous* grid point ends in a quick-stop; its cleanup
+      // (disarm + planner.synchronize(), which drains the quick_stop and clears
+      // PreciseStepping::stopping() - see recover_from_probe_safety_trip() above) can still be
+      // settling by the time this next point's setup reaches here. Observed live:
+      // probe_should_abort() reading true right after the *previous* point measured cleanly -
+      // sometimes just stopping=1, sometimes stopping=1 *and* safety_tripped=1 too - silently
+      // skipping the next point with zero probe attempts. Reuse the same recovery path already
+      // used for an in-loop safety trip rather than only a passive wait, since it also clears a
+      // lingering safety_tripped (a plain wait can't - that flag is sticky until disarm/tare).
+      // Real cause (why the cleanup is still pending here) not yet root-caused - this is a
+      // bounded recovery attempt for the specific transient case, not a fix for the underlying
+      // race. A real cancellation (draining()) is not recovered from.
+      if (loadcell.IsSoftSurfaceModeActive() && !planner.draining() && loadcell.probe_should_abort()) {
+        SERIAL_ECHOLNPAIR("Bookmark3D debug: run_z_probe() pre-loop probe_should_abort() true, stopping=", (int)PreciseStepping::stopping(), " safety_tripped=", (int)loadcell.probe_safety_did_trip(), " - attempting recovery");
+        const bool recovered = recover_from_probe_safety_trip();
+        SERIAL_ECHOLNPAIR("Bookmark3D debug: run_z_probe() pre-loop recovery attempt done, recovered=", (int)recovered, " still_should_abort=", (int)loadcell.probe_should_abort());
+      }
+    #endif
     if (loadcell.probe_should_abort()) {
       #if HAS_SOFT_SURFACE_MODE()
         if (loadcell.IsSoftSurfaceModeActive()) {
