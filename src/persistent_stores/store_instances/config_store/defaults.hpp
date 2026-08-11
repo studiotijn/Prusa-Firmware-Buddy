@@ -349,7 +349,14 @@ namespace defaults {
     // noisy for that classifier's line-fit, not a trigger-threshold problem. 0.5 is an untested
     // starting point, not calibrated.
     inline constexpr float soft_surface_filter_strength { 0.5f }; // EMA smoothing weight [0,1] on top of the stock bandpass filter, applied only to the post-hoc curve-classifier input
-    inline constexpr float soft_surface_compression_compensation { 0.0f }; // mm, subtracted from the averaged trigger height
+    // 2026-08-12: raised 0 -> 0.8mm after live testing showed the first printed layer sitting
+    // ~0.8mm too high (gap between nozzle and cover, poor adhesion). Verified sign against
+    // machine_pos_conv.cpp (result.z += mbl_correction, where mbl_correction is interpolated
+    // from these mesh values): a *lower* recorded surface height moves the toolhead *closer*
+    // to the material during printing, so raising this (which subtracts more from the raw
+    // probed height) closes an excess gap - not yet independently confirmed by re-printing
+    // with this new value.
+    inline constexpr float soft_surface_compression_compensation { 0.8f }; // mm, subtracted from the averaged trigger height
     inline constexpr float soft_surface_max_probe_force { 150.0f }; // grams, hard abort ceiling (~19x soft_surface_probe_force) - the real indentation backstop, see probe_safety_stop()
     // 2026-08-12: raised 1.0 -> 5.0mm per explicit user request after a physical dent appeared
     // on a real book cover during testing - user judged +/-5mm across the whole print-bed

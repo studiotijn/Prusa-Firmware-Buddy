@@ -89,6 +89,11 @@ void WindowSoftSurfaceGauge::unconditionalDraw() {
     display::fill_rect(empty_bar_rect(rect, force_px), COLOR_DARK_GRAY);
     display::fill_rect(filled_bar_rect(rect, force_px), COLOR_BRAND);
 
+    // Clear the arrow's drawing area first - it sits to the right of the bar-fill rects above
+    // (which only cover [Left, Left+bar_width)), so without this every previous arrow position
+    // stays painted, leaving a "trail" of red triangles up the scale instead of one clean arrow.
+    display::fill_rect(Rect16(baseline_x, rect.Top(), arrow_size + 1, rect.Height()), COLOR_BLACK);
+
     // short vertical baseline
     display::draw_line(point_ui16(baseline_x, rect.Top()), point_ui16(baseline_x, rect.Top() + rect.Height()), COLOR_WHITE);
 
