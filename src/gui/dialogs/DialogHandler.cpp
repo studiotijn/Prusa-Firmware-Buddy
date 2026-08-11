@@ -17,6 +17,11 @@
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_loadcell.h>
 #include <option/has_indx.h>
+#include <option/has_soft_surface_mode.h>
+
+#if HAS_SOFT_SURFACE_MODE()
+    #include <dialog_soft_surface_probing.hpp>
+#endif
 #include <gui/screen/screen_preheat.hpp>
 #include <gui/screen/dialog_safety_timer.hpp>
 
@@ -262,6 +267,9 @@ struct FSMDisplayConfigDef {
 using FSMDisplayConfig = FSMDisplayConfigDef<
     FSMDialogDef<ClientFSM::Wait, window_dlg_wait_t>,
     FSMDialogDef<ClientFSM::SafetyTimer, DialogSafetyTimer>,
+#if HAS_SOFT_SURFACE_MODE()
+    FSMDialogDef<ClientFSM::SoftSurfaceProbing, DialogSoftSurfaceProbing>,
+#endif
 #if HAS_SERIAL_PRINT()
     FSMPrintDef<ClientFSM::Serial_printing>,
 #endif

@@ -1159,11 +1159,13 @@ float probe_at_point(const xy_pos_t &pos, const ProbePtRaise raise_after/*=PROBE
 
     #if HAS_SOFT_SURFACE_MODE()
       // Bookmark3D Soft Surface Mode (experimental, see docs/design.md): swap in force-buildup
-      // detection for this probe point when enabled in config_store.
+      // detection for this probe point when enabled in config_store. GetEffectiveProbeForce()
+      // returns the live gauge overlay's override while its probing session is open (see
+      // dialog_soft_surface_probing.*), otherwise the config_store value unchanged.
       auto softSurfaceModeEnabler = Loadcell::SoftSurfaceModeEnabler(
           loadcell,
           config_store().soft_surface_mode_enabled.get(),
-          config_store().soft_surface_probe_force.get(),
+          loadcell.GetEffectiveProbeForce(config_store().soft_surface_probe_force.get()),
           config_store().soft_surface_probe_samples.get(),
           config_store().soft_surface_max_probe_force.get());
     #endif

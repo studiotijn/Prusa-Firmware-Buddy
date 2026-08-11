@@ -75,6 +75,9 @@ constinit const EnumArray<ClientFSM, std::span<const PhaseResponses>, ClientFSM:
 #endif
         { ClientFSM::SafetyTimer, safety_timer_responses },
         { ClientFSM::Wait, {} },
+#if HAS_SOFT_SURFACE_MODE()
+        { ClientFSM::SoftSurfaceProbing, {} },
+#endif
 };
 
 } // namespace ClientResponses

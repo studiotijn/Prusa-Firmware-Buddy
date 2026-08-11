@@ -231,6 +231,19 @@ Loadcell::SoftSurfaceModeEnabler::~SoftSurfaceModeEnabler() {
         m_lcell.SetSoftSurfaceMode(false, 0.f, 1, 0.f);
     }
 }
+
+void Loadcell::SetLiveProbeForceOverride(std::optional<float> grams) {
+    if (grams) {
+        live_probe_force_override_value.store(*grams);
+        live_probe_force_override_active.store(true);
+    } else {
+        live_probe_force_override_active.store(false);
+    }
+}
+
+float Loadcell::GetEffectiveProbeForce(float config_store_value) const {
+    return live_probe_force_override_active.load() ? live_probe_force_override_value.load() : config_store_value;
+}
 #endif // HAS_SOFT_SURFACE_MODE()
 
 bool Loadcell::GetMinZEndstop() const {

@@ -22,6 +22,12 @@
 
 #include "../../../inc/MarlinConfig.h"
 #include "config_store/store_instance.hpp"
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+  #include <optional>
+  #include <marlin_server.hpp>
+  #include <client_response.hpp>
+#endif
 
 #if ENABLED(AUTO_BED_LEVELING_UBL)
 
@@ -688,6 +694,15 @@
     #if ENABLED(NOZZLE_LOAD_CELL)
       // Enable loadcell high precision across the entire sequence to prime the noise filters
       auto loadcellPrecisionEnabler = Loadcell::HighPrecisionEnabler(loadcell);
+    #endif
+
+    #if HAS_SOFT_SURFACE_MODE()
+      // Live loadcell-force gauge overlay (see dialog_soft_surface_probing.*): one probing
+      // session spanning the entire grid-probing loop below, not re-opened per point.
+      std::optional<marlin_server::FSM_Holder> soft_surface_probing_overlay;
+      if (config_store().soft_surface_mode_enabled.get()) {
+        soft_surface_probing_overlay.emplace(PhaseSoftSurfaceProbing::active);
+      }
     #endif
 
     #if UBL_TRAVEL_ACCELERATION

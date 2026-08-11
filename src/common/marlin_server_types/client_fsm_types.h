@@ -17,6 +17,7 @@
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_serial_print.h>
 #include <option/has_indx.h>
+#include <option/has_soft_surface_mode.h>
 
 #include <inc/MarlinConfigPre.h>
 
@@ -78,6 +79,9 @@ enum class ClientFSM : uint8_t {
     #endif
     SafetyTimer,
     Wait, ///< FSM that only blocks the screen with a "please wait" text
+    #if HAS_SOFT_SURFACE_MODE()
+    SoftSurfaceProbing, ///< Bookmark3D: live loadcell-force gauge shown during soft-surface G28/G29 probing
+    #endif
     _none, // cannot be created, must have same index as _count
     _count = _none
 };

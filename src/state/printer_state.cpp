@@ -19,6 +19,7 @@
 #include <option/has_input_shaper_calibration.h>
 #include <option/has_phase_stepping_calibration.h>
 #include <option/xl_enclosure_support.h>
+#include <option/has_soft_surface_mode.h>
 #include <option/has_uneven_bed_prompt.h>
 #include <config_store/store_instance.hpp>
 #include <option/has_remote_bed.h>
@@ -275,6 +276,9 @@ DeviceState get_state(bool ready) {
         // preheat menu to be the only menu screen to not be Idle... :-(
     case ClientFSM::Preheat:
     case ClientFSM::Wait:
+#if HAS_SOFT_SURFACE_MODE()
+    case ClientFSM::SoftSurfaceProbing:
+#endif
         return busy_state;
 #if HAS_INDX()
     case ClientFSM::NozzleMismatch:
@@ -475,6 +479,9 @@ StateWithDialog get_state_with_dialog(bool ready) {
     case ClientFSM::Printing:
 #if HAS_SERIAL_PRINT()
     case ClientFSM::Serial_printing:
+#endif
+#if HAS_SOFT_SURFACE_MODE()
+    case ClientFSM::SoftSurfaceProbing:
 #endif
         break;
 

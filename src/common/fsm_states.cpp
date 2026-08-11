@@ -7,6 +7,7 @@
 #include <option/has_door_sensor_calibration.h>
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_indx.h>
+#include <option/has_soft_surface_mode.h>
 #include <logging/log.hpp>
 
 LOG_COMPONENT_DEF(Fsm, logging::Severity::debug);
@@ -67,6 +68,9 @@ static constexpr uint32_t score(ClientFSM fsm_type) {
 #endif
 #if HAS_LOADCELL()
     case ClientFSM::NozzleCleaningFailed:
+#endif
+#if HAS_SOFT_SURFACE_MODE()
+    case ClientFSM::SoftSurfaceProbing:
 #endif
         return 2;
 #if HAS_INDX()

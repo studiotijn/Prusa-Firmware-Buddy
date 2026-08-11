@@ -214,6 +214,66 @@ loadcell contact detection as probing (`homeaxis(Z_AXIS)` → the same ISR path
 `Loadcell::SoftSurfaceModeEnabler` at the same call site pattern as
 `probe.cpp`.
 
+### 4.9 Live probing-force gauge (GUI)
+
+Added 2026-08-11, after the original 8-branch plan. Shows a live loadcell-force
+bar + adjustable-threshold arrow on the LCD for the duration of one
+soft-surface probing session (G28's homing bump and G29's mesh-probing pass
+each open their own session).
+
+- **Live force display**: reuses the existing `sensor_data().loadCell`
+  channel (`src/common/sensor_data.hpp`), already written every sample inside
+  `Loadcell::ProcessSample` (§4.2) — no new core→GUI plumbing needed for the
+  read side, this is the same channel `MI_INFO_LOADCELL` already polls.
+- **Live threshold override**: new `Loadcell::SetLiveProbeForceOverride()` /
+  `GetEffectiveProbeForce()` (`loadcell.hpp`/`.cpp`), backed by two lock-free
+  atomics — the reverse-direction counterpart to `sensor_data().loadCell`
+  (GUI thread writes, Marlin thread reads). `probe_at_point()`
+  (`probe.cpp`) and `home_z_safely()` (`G28.cpp`) already re-read
+  `config_store().soft_surface_probe_force` fresh on *every* probe/homing
+  attempt (not just once per G29 call), so intercepting that read is all
+  that's needed for knob adjustments to take effect on the very next
+  attempt within the same session — no per-tick config_store writes (bad for
+  flash wear).
+- **Session lifetime**: a new `ClientFSM::SoftSurfaceProbing` /
+  `PhaseSoftSurfaceProbing` (single phase, no buttons — mirrors `ClientFSM::Wait`
+  exactly), opened via `marlin_server::FSM_Holder` at the top of
+  `unified_bed_leveling::probe_major_points()` (spans the *entire* G29 grid
+  loop, not re-opened per point) and around the homing-bump block in
+  `home_z_safely()`. `DialogSoftSurfaceProbing`
+  (`src/gui/dialogs/dialog_soft_surface_probing.hpp/.cpp`) is bound to it via
+  `DialogHandler.cpp`'s `FSMDisplayConfig` table, same mechanism as
+  `window_dlg_wait_t`/`ClientFSM::Wait`.
+- **Save on leaving the session**: `DialogSoftSurfaceProbing`'s destructor
+  writes the live-adjusted value to `config_store().soft_surface_probe_force`
+  and clears the override — mirrors `WindowLiveAdjustZ::~WindowLiveAdjustZ()`'s
+  `Save()`-on-destroy pattern (`src/gui/dialogs/liveadjust_z.cpp`), which this
+  whole feature is modeled on (vertical scale line, live marker position,
+  knob-driven `GUI_event_t::KNOB` adjustment).
+- **Widget**: `WindowSoftSurfaceGauge` (short vertical baseline, a filled
+  vertical bar for the live force, a hand-drawn triangle arrow for the
+  threshold — no vertical-arrow icon resource exists in this codebase).
+  Visual scale tops out at `soft_surface_max_probe_force` (§4.7's existing
+  hard-abort ceiling), so the bar can never exceed the height the printer
+  would itself abort probing at.
+- **Shared bounds**: `soft_surface_probe_force_spin_config`
+  (min/max/step/decimals) moved out of `MItem_experimental_tools.cpp` into
+  `src/gui/soft_surface_probe_force_config.hpp` so the Experimental Settings
+  menu item and this live overlay can't drift apart on bounds.
+- Compile-verified only (`HAS_SOFT_SURFACE_MODE=OFF` confirmed byte-identical
+  to the pre-existing baseline `.bbf`; `=ON` debug builds clean) — like every
+  other Soft Surface Mode branch to date, not yet tested on real hardware.
+  Widget pixel geometry (`gauge_rect()` in `dialog_soft_surface_probing.cpp`)
+  is a first pass; needs visual tuning against a real display or the
+  simulator, not verifiable in this headless build environment.
+- Adding the new `ClientFSM` value required touching every place that
+  exhaustively switches/tables over `ClientFSM` (compile-time-checked, not
+  just convention): `src/common/marlin_server_types/client_response.cpp`'s
+  `fsm_phase_responses` table, `src/common/fsm_states.cpp`'s FSM-priority
+  `score()` switch, and both `ClientFSM` switches in
+  `src/state/printer_state.cpp`. Worth remembering if another new `ClientFSM`
+  is ever added to this fork.
+
 ## 5. UI / user toggle
 
 As implemented: new items added to both `screen_menu_experimental_settings_debug`
@@ -301,3 +361,15 @@ build) before merging into a project integration branch.
   a decision on *how* — a second filter stage in `BandPassFilter`, or a
   simple exponential smoothing pass on `filtered_z_load` — before wiring it
   up; deferred rather than guessed at.
+- §4.9's live probing-force gauge (`ClientFSM::SoftSurfaceProbing`) was given
+  priority score 2 in `fsm_states.cpp`'s `score()` (same tier as
+  `Load_unload`/`Preheat`/`PrintPreview` — shows over the base
+  `Printing`/`Selftest` screen, e.g. during the first-layer wizard's G28/G29
+  sub-steps, but still yields to `SafetyTimer`(4)/`Warning`(5)). This is a
+  judgment call, not derived from an existing precedent for an
+  interactive-but-passive overlay; may need revisiting once real nested-FSM
+  scenarios (e.g. a warning firing mid-probing-session) are actually
+  exercised on hardware.
+- §4.9's gauge widget geometry (`gauge_rect()`) is placed in the screen's
+  upper-right corner by rough estimate only — never visually confirmed
+  against a real display or the simulator (this environment is headless).

@@ -24,6 +24,10 @@ if(HAS_TOOLCHANGER)
   target_sources(firmware PRIVATE dialog_tool_select.cpp)
 endif()
 
+if(HAS_SOFT_SURFACE_MODE)
+  target_sources(firmware PRIVATE dialog_soft_surface_probing.cpp)
+endif()
+
 if(BOARD STREQUAL "BUDDY")
   add_subdirectory(resolution_240x320)
   target_sources(firmware PRIVATE)

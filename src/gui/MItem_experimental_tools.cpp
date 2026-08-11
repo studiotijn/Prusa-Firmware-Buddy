@@ -11,6 +11,7 @@
 #include <gui/menu_vars.h>
 #if HAS_SOFT_SURFACE_MODE()
     #include "window_msgbox.hpp"
+    #include "soft_surface_probe_force_config.hpp"
 #endif
 
 #if PRINTER_IS_PRUSA_MK3_5()
@@ -250,11 +251,6 @@ void MI_SOFT_SURFACE_MODE_ENABLE::OnChange(size_t) {
 
 /*****************************************************************************/
 // MI_SOFT_SURFACE_PROBE_FORCE
-static constexpr NumericInputConfig soft_surface_probe_force_spin_config {
-    .min_value = 1,
-    .max_value = 500,
-    .max_decimal_places = 1,
-};
 
 MI_SOFT_SURFACE_PROBE_FORCE::MI_SOFT_SURFACE_PROBE_FORCE()
     : WiSpin(config_store().soft_surface_probe_force.get(), soft_surface_probe_force_spin_config, _("Probe Force (g)")) {}

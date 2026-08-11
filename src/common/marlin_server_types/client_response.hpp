@@ -49,6 +49,7 @@
 #include <option/has_tool_offset_sensor.h>
 #include <option/has_human_interactions.h>
 #include <option/has_tool_crash_recovery.h>
+#include <option/has_soft_surface_mode.h>
 
 #include <option/has_hotend_type_support.h>
 #if HAS_HOTEND_TYPE_SUPPORT()
@@ -120,6 +121,18 @@ enum class PhaseWait : PhaseUnderlyingType {
     _last = _cnt - 1,
 };
 constexpr inline ClientFSM client_fsm_from_phase(PhaseWait) { return ClientFSM::Wait; }
+
+#if HAS_SOFT_SURFACE_MODE()
+enum class PhaseSoftSurfaceProbing : PhaseUnderlyingType {
+    /// Live loadcell-force gauge + adjustable threshold, shown for the duration of one
+    /// soft-surface G28/G29 probing session. No buttons - interaction is via the knob directly
+    /// on the gauge widget, not the standard Response system.
+    active,
+    _cnt,
+    _last = _cnt - 1,
+};
+constexpr inline ClientFSM client_fsm_from_phase(PhaseSoftSurfaceProbing) { return ClientFSM::SoftSurfaceProbing; }
+#endif
 
 #if HAS_SELFTEST()
 // GUI phases of selftest/wizard

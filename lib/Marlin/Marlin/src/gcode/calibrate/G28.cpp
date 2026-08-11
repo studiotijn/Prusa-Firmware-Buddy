@@ -113,6 +113,7 @@
 
 #include <raii/scope_guard.hpp>
 #include <marlin_server.hpp>
+#include <client_response.hpp>
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
 
@@ -261,10 +262,19 @@ bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags);
         // loadcell contact detection as probing (see probe_at_point()), so it
         // needs the same gentler force-buildup thresholds, not the
         // hard-contact default.
+
+        // Live loadcell-force gauge overlay (see dialog_soft_surface_probing.*): one probing
+        // session for the duration of this single homing-bump move. std::optional rather than
+        // an Enabler-style bool ctor because FSM_Holder has none.
+        std::optional<marlin_server::FSM_Holder> soft_surface_probing_overlay;
+        if (config_store().soft_surface_mode_enabled.get()) {
+          soft_surface_probing_overlay.emplace(PhaseSoftSurfaceProbing::active);
+        }
+
         auto softSurfaceModeEnabler = Loadcell::SoftSurfaceModeEnabler(
             loadcell,
             config_store().soft_surface_mode_enabled.get(),
-            config_store().soft_surface_probe_force.get(),
+            loadcell.GetEffectiveProbeForce(config_store().soft_surface_probe_force.get()),
             config_store().soft_surface_probe_samples.get(),
             config_store().soft_surface_max_probe_force.get());
       #endif

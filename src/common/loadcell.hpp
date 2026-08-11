@@ -9,6 +9,7 @@
 #include <limits>
 #include "probe_analysis.hpp"
 #include <atomic>
+#include <optional>
 #include <printers.h>
 #include <option/has_indx.h>
 #include <option/has_soft_surface_mode.h>
@@ -208,6 +209,21 @@ public:
     void SetSoftSurfaceMode(bool enabled, float force_threshold, uint8_t confirm_samples, float max_force);
     inline bool IsSoftSurfaceModeActive() const { return soft_surface_mode_active; }
 
+    /// Live probing-force threshold override, set by the live probing-force gauge overlay
+    /// (src/gui/dialogs/dialog_soft_surface_probing.*) while its dialog is open. Lets the user
+    /// tune soft_surface_probe_force in real time via the knob, with immediate effect on the
+    /// *next* probe/homing attempt within the same probing session. std::nullopt = no override
+    /// active; probe/homing call sites fall back to their config_store value unchanged. Safe to
+    /// call from any thread (GUI writes, Marlin core reads) - lock-free atomics, same idiom as
+    /// sensor_data().loadCell.
+    /// @see GetEffectiveProbeForce()
+    void SetLiveProbeForceOverride(std::optional<float> grams);
+
+    /// @param config_store_value the caller's own config_store-sourced fallback
+    /// @return the live override value if a probing-force overlay session is currently open,
+    ///         otherwise config_store_value unchanged.
+    float GetEffectiveProbeForce(float config_store_value) const;
+
     /// RAII guard: applies Soft Surface Mode detection config for the scope, restores stock
     /// detection on destruction. The `enable` flag allows conditional use without scoping the
     /// guard inside an if block (mirrors HighPrecisionEnabler).
@@ -361,6 +377,14 @@ private:
     uint8_t soft_surface_confirm_samples = 1;
     uint8_t soft_surface_confirm_counter = 0;
     float soft_surface_max_force = std::numeric_limits<float>::infinity();
+
+    /// Backing storage for SetLiveProbeForceOverride()/GetEffectiveProbeForce() - written from
+    /// the GUI thread (probing-force overlay), read from the Marlin thread (probe/homing call
+    /// sites), lock-free by construction.
+    std::atomic<bool> live_probe_force_override_active { false };
+    std::atomic<float> live_probe_force_override_value { 0.f };
+    static_assert(std::atomic<bool>::is_always_lock_free, "Lock free type must be used cross-thread.");
+    static_assert(std::atomic<float>::is_always_lock_free, "Lock free type must be used cross-thread.");
 #endif // HAS_SOFT_SURFACE_MODE()
 
     float scale;
