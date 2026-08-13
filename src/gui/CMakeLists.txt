@@ -99,6 +99,10 @@ if(HAS_XLCD_TOUCH_DRIVER)
   target_sources(firmware PRIVATE MItem_touch.cpp screen_touch_playground.cpp)
 endif()
 
+if(HAS_SOFT_SURFACE_MODE)
+  target_sources(firmware PRIVATE window_soft_surface_mode_banner.cpp)
+endif()
+
 if(DEVELOPMENT_ITEMS_ENABLED)
   target_sources(firmware PRIVATE MItem_development.cpp)
 endif()

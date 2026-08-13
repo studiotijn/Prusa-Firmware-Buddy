@@ -9,6 +9,10 @@
 #include <guiconfig/guiconfig.h>
 
 #include <option/buddy_enable_connect.h>
+#include <option/has_soft_surface_mode.h>
+#if HAS_SOFT_SURFACE_MODE()
+    #include "window_soft_surface_mode_banner.hpp"
+#endif
 
 struct window_header_t : public window_frame_t {
 
@@ -28,6 +32,9 @@ struct window_header_t : public window_frame_t {
     window_text_t transfer_val;
     window_icon_t icon_transfer;
     window_icon_t icon_stealth;
+#if HAS_SOFT_SURFACE_MODE()
+    WindowSoftSurfaceModeBanner soft_surface_mode_banner;
+#endif
 #if BUDDY_ENABLE_CONNECT()
     window_icon_t icon_connect; /// Icon switches between connect_16x16 and set_ready_16x16
 #endif // BUDDY_ENABLE_CONNECT()

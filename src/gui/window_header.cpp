@@ -43,6 +43,10 @@ constexpr uint32_t transfer_hide_timeout { 1'000'000u };
 
 constexpr Rect16 first_rect_doesnt_matter { 0, 0, 0, 0 }; // first rect will be replaced by first recalculation anyway
 
+#if HAS_SOFT_SURFACE_MODE()
+constexpr Rect16::Width_t soft_surface_banner_w { width(GuiDefaults::HeaderTextFont) * (sizeof("SoftSurfaceMode(Tijn)") - 1) };
+#endif
+
 #if HAS_MINI_DISPLAY()
 constexpr Rect16::Width_t label_w { 90 };
 #endif
@@ -263,6 +267,9 @@ void window_header_t::updateAllRects() {
 #if BUDDY_ENABLE_CONNECT()
     maybe_update(icon_connect, icon_connect.resource()->w);
 #endif // BUDDY_ENABLE_CONNECT()
+#if HAS_SOFT_SURFACE_MODE()
+    maybe_update(soft_surface_mode_banner, soft_surface_banner_w);
+#endif
 
     auto label_width = current_offset - GuiDefaults::HeaderPadding.left;
 
@@ -291,6 +298,10 @@ void window_header_t::updateIcons() {
 
     icon_stealth.set_visible(config_store().stealth_mode.get());
 
+#if HAS_SOFT_SURFACE_MODE()
+    soft_surface_mode_banner.set_visible(config_store().soft_surface_mode_enabled.get());
+#endif
+
     updateAllRects();
 }
 
@@ -307,6 +318,9 @@ window_header_t::window_header_t(window_t *parent, const string_view_utf8 &txt)
     , transfer_val(this, first_rect_doesnt_matter, is_multiline::no)
     , icon_transfer(this, first_rect_doesnt_matter, &img::transfer_icon_16x16)
     , icon_stealth(this, first_rect_doesnt_matter, &img::stealth_20x16)
+#if HAS_SOFT_SURFACE_MODE()
+    , soft_surface_mode_banner(this, first_rect_doesnt_matter)
+#endif
 #if BUDDY_ENABLE_CONNECT()
     , icon_connect(this, first_rect_doesnt_matter, &img::connect_16x16)
 #endif // BUDDY_ENABLE_CONNECT()

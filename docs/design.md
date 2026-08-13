@@ -274,6 +274,68 @@ each open their own session).
   `src/state/printer_state.cpp`. Worth remembering if another new `ClientFSM`
   is ever added to this fork.
 
+### 4.10 Always-visible "non-standard firmware" header banner (GUI)
+
+Added 2026-08-13, at the user's explicit request: while §4.9's gauge is
+session-scoped (only visible during an actual G28/G29 probing pass), there
+was previously no persistent indication anywhere in the UI that Soft Surface
+Mode is enabled at all outside of that narrow window — someone else picking
+up the printer between prints would have no visual cue the firmware isn't
+running standard behavior.
+
+- **Widget**: `WindowSoftSurfaceModeBanner` (`src/gui/window_soft_surface_mode_banner.hpp/.cpp`),
+  a `window_text_t` subclass showing the literal (untranslated,
+  `string_view_utf8::MakeCPUFLASH`) text `"SoftSurfaceMode(Tijn)"` inside a
+  border drawn with `display::draw_rect`. Blinks 0.5s on / 0.5s off by
+  computing `(gui::GetTick() / 500) & 1` in `windowEvent()` and calling
+  `Invalidate()` on phase change — the same tick-based approach
+  `WindowBlinkingText` (`src/guiapi/include/window_text.hpp`) already uses
+  elsewhere in this codebase, just fully blanking the widget (`fill_rect`)
+  on the "off" half instead of only recoloring text, so the border
+  disappears too, not just the label.
+- **Placement**: added as a member of `window_header_t`
+  (`src/gui/window_header.hpp/.cpp`) rather than any single screen, since
+  the header is embedded (by value, one instance per screen, not a global
+  singleton) in ~20 different screens already — this is the existing
+  mechanism every other "small always-on cross-screen indicator" in this
+  codebase uses (USB icon, network icon, stealth-mode icon, bed-temp
+  readout). Positioned via the header's existing right-to-left
+  `updateAllRects()`/`maybe_update()` layout chain, last in that chain so
+  it sits immediately left of the icon cluster, right next to the
+  scrolling title label (`window_roll_text_t`, which already tolerates a
+  shrinking available width by design).
+- **Visibility**: polled once per `GUI_event_t::LOOP` (~100ms) in
+  `window_header_t::updateIcons()` — `soft_surface_mode_banner.set_visible(
+  config_store().soft_surface_mode_enabled.get())` — identical pattern to
+  the existing `icon_stealth`/`icon_metrics` config_store-boolean-driven
+  icons in the same function. When the mode is off, the banner is not just
+  blank but fully absent (zero width in the layout), matching "the frame
+  must disappear entirely when Soft Surface Mode is off" from the request.
+- **RAM cost found and fixed along the way**: `window_header_t` is embedded
+  in several screen structs allocated out of `ScreenFactory`'s single
+  shared static buffer (`src/gui/ScreenFactory.hpp` — only one screen
+  exists at a time, so screens are placement-constructed into one
+  fixed-size `std::array`, sized to fit the largest screen type at compile
+  time). Growing the header by one more child widget grew
+  `screen_printing_data_t` past that buffer's compile-time size
+  (`static_assert(sizeof(T) <= storage.size())` failed: 4232 vs. 4192
+  bytes) - caught immediately by the build, not discovered at runtime.
+  Fixed by widening the buffer specifically for the `HAS_SOFT_SURFACE_MODE()`
+  case only (`elif HAS_SOFT_SURFACE_MODE()` branch, 4232 bytes vs. the
+  unchanged default 4192) - the default (flag off) build's RAM footprint is
+  completely unaffected, matching the project's zero-impact-when-inactive
+  principle.
+- Compile-verified both ways using the same targeted approach as every
+  prior branch: `HAS_SOFT_SURFACE_MODE=ON` debug (`mk4_debug_boot`/`_noboot`,
+  zero errors/warnings) and release (`mk4_release_boot`/`_noboot`, 57.47%
+  FLASH, in line with §4.9's 57.2-57.31% range) both linked clean; `=OFF`
+  baseline rebuild confirms the default build is unaffected. Not yet seen on
+  a real display - text length ("SoftSurfaceMode(Tijn)", 21 characters at
+  `Font::special`'s 9px width ≈ 189px) was sized against `GuiDefaults` header
+  layout constants only, not visually confirmed like every other GUI-facing
+  Soft Surface Mode addition to date (§4.9's gauge geometry has the same
+  caveat).
+
 ## 5. UI / user toggle
 
 As implemented: new items added to both `screen_menu_experimental_settings_debug`
@@ -339,6 +401,15 @@ on `master`, per `../CLAUDE.md`. Proposed sequence:
 8. `feature/soft-surface-safe-homing` — §4.8. Not part of the original plan;
    added after discovering the homing path had the same off-bed-fixed-point
    problem the probing branches already solved.
+9. `feature/soft-surface-probing-gauge` — §4.9. Also not part of the
+   original plan; added after real-hardware testing began.
+10. `feature/soft-surface-realworld-tuning` — real-hardware tuning fixes
+    (probe force/indentation defaults, `filter_strength` wiring, several
+    UBL/probing-race bugfixes) found during live testing.
+11. `feature/soft-surface-status-banner` — §4.10. Persistent header
+    warning banner, added at the user's request once real hardware testing
+    made clear the probing-only gauge (§4.9) wasn't enough of a standing
+    reminder that the firmware isn't stock.
 
 Each branch should be small enough to review independently and must build
 cleanly with `HAS_SOFT_SURFACE_MODE=OFF` (default, no change) and `=ON` (dev
@@ -373,3 +444,10 @@ build) before merging into a project integration branch.
 - §4.9's gauge widget geometry (`gauge_rect()`) is placed in the screen's
   upper-right corner by rough estimate only — never visually confirmed
   against a real display or the simulator (this environment is headless).
+- §4.10's header banner text width was computed from `GuiDefaults` font
+  metrics only, same headless-environment caveat as above — needs a
+  real-display check that "SoftSurfaceMode(Tijn)" doesn't crowd out the
+  screen title label on the smaller screens some of the header's ~20
+  embedding screens use, and that the blink is visually clean (no leftover
+  border fragments) across an actual screen transition, not just a LOOP
+  tick in isolation.

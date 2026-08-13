@@ -6,6 +6,7 @@
 #include <config.h>
 #include <common/primitive_any.hpp>
 #include <option/has_indx.h>
+#include <option/has_soft_surface_mode.h>
 
 class ScreenFactory {
     ScreenFactory() = delete;
@@ -17,6 +18,10 @@ class ScreenFactory {
     using Storage = std::array<uint8_t, 3344>;
 #elif HAS_INDX()
     using Storage = std::array<uint8_t, 4400>;
+#elif HAS_SOFT_SURFACE_MODE()
+    // Soft Surface Mode's header banner (window_soft_surface_mode_banner.hpp) grows window_header_t,
+    // and therefore every screen embedding one - the largest of those needs slightly more room here.
+    using Storage = std::array<uint8_t, 4232>;
 #else
     using Storage = std::array<uint8_t, 4192>;
 #endif
