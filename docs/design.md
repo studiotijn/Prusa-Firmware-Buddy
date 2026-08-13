@@ -335,6 +335,24 @@ running standard behavior.
   layout constants only, not visually confirmed like every other GUI-facing
   Soft Surface Mode addition to date (§4.9's gauge geometry has the same
   caveat).
+- **Real bug found from first real-hardware look**: user reported the border
+  rendered as a clean thin red line but the text inside was unreadable.
+  Root cause: `updateAllRects()`'s `maybe_update()` lambda
+  (`window_header.cpp`) decides whether to add `HeaderTextExtraPaddingTop`
+  to an item's vertical position with
+  `if constexpr (std::same_as<window_text_t, std::remove_cvref_t<decltype(item)>>)`
+  — an *exact*-type check. Every existing header text item (`time_val`,
+  `transfer_val`, `bed_text`) is declared as a plain `window_text_t`, so it
+  matched; `WindowSoftSurfaceModeBanner` is a `window_text_t` *subclass*, so
+  it didn't, and rendered one row higher than the font rendering expects
+  at this exact item height (`HeaderItemHeight` == the font's own height,
+  zero natural margin) — garbling every glyph while the independently-drawn
+  border (`display::draw_rect` on the same `GetRect()`) was unaffected and
+  looked fine. Fixed by widening the check to `std::derived_from<...,
+  window_text_t>` (also matches the exact-type case, so existing items are
+  unaffected) - a latent bug for any *future* `window_text_t`-derived header
+  widget too, not just this one. No size/RAM impact; re-verified `=ON`
+  debug+release and `=OFF` baseline all unchanged otherwise.
 
 ## 5. UI / user toggle
 

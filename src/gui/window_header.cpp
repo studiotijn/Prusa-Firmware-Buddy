@@ -235,7 +235,7 @@ void window_header_t::updateAllRects() {
         if (item.IsVisible()) {
             current_offset -= item_width;
             auto top_position { GuiDefaults::HeaderPadding.top };
-            if constexpr (std::same_as<window_text_t, std::remove_cvref_t<decltype(item)>>) {
+            if constexpr (std::derived_from<std::remove_cvref_t<decltype(item)>, window_text_t>) {
                 top_position += GuiDefaults::HeaderTextExtraPaddingTop;
             }
             Rect16 new_rect { Rect16(current_offset, top_position, item_width, GuiDefaults::HeaderItemHeight) };
